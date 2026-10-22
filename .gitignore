@@ -39,3 +39,65 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+/lib/
+/lib64/
+!src/lib/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Pytest & test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment files
+!.env.example
+!backend/.env.example
+
+# Local SQLite databases
+*.sqlite
+*.sqlite3
+*.db
+backend/data/*.sqlite
+backend/data/*.sqlite3
+
+# Scratch and disposable experimental directories
+scratch/
+backend/scratch/
+
+# Large source maps
+*.map
+
+# Editor & IDE directories
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+Thumbs.db
+desktop.ini

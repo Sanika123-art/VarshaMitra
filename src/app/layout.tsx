@@ -1,37 +1,57 @@
-import type { Metadata } from "next";
-import "leaflet/dist/leaflet.css";
+import type { Metadata, Viewport } from "next";
+import { Inter, Noto_Sans_Devanagari, Noto_Serif_Devanagari, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { AppStateProvider } from "@/hooks/useAppState";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import AppFrame from "@/components/shell/AppFrame";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const sourceSerif = Source_Serif_4({ subsets: ["latin"], variable: "--font-source-serif", display: "swap" });
+const notoSansDeva = Noto_Sans_Devanagari({
+  subsets: ["devanagari"],
+  variable: "--font-noto-sans-devanagari",
+  display: "swap",
+});
+const notoSerifDeva = Noto_Serif_Devanagari({
+  subsets: ["devanagari"],
+  variable: "--font-noto-serif-devanagari",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "VarshaMitra — Hyperlocal Rainfall Intelligence for Smarter Farming",
+  title: {
+    default: "VarshaMitra — Hyperlocal climate intelligence for agriculture",
+    template: "%s · VarshaMitra",
+  },
   description:
-    "VarshaMitra — AI-Powered Hyperlocal Rainfall Prediction and Decision Support for Climate-Resilient Agriculture. Developed for PCCOE Indradhanu Grand Challenge 2026.",
-  keywords: "VarshaMitra, climate intelligence, agriculture, monsoon, risk prediction, crop advisory, hyperlocal, Maharashtra",
-  authors: [{ name: "VarshaMitra Team" }],
+    "VarshaMitra is an AI-powered hyperlocal climate-risk intelligence and agricultural decision-support platform for Maharashtra: delivering calibrated monsoon outlooks, block-level risk maps, and actionable crop advisories in English and Marathi.",
+  keywords: "VarshaMitra, climate intelligence, agriculture, monsoon, crop advisory, Maharashtra, Bit2Bramha",
+  authors: [{ name: "Team Bit2Bramha" }],
   openGraph: {
-    title: "VarshaMitra — Hyperlocal Rainfall Intelligence for Smarter Farming",
-    description:
-      "VarshaMitra — AI-Powered Hyperlocal Rainfall Prediction and Decision Support for Climate-Resilient Agriculture",
+    title: "VarshaMitra — Hyperlocal climate intelligence for agriculture",
+    description: "Hyperlocal monsoon outlooks, climate-risk maps, and actionable crop advisories for Maharashtra agriculture.",
     siteName: "VarshaMitra",
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#1f4b3a",
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
-      <head>
-        <meta name="theme-color" content="#1f4b3a" />
-      </head>
-      <body className="min-h-full flex flex-col">
+    <html
+      lang="en"
+      data-scroll-behavior="smooth"
+      className={`${inter.variable} ${sourceSerif.variable} ${notoSansDeva.variable} ${notoSerifDeva.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <body className="flex min-h-full flex-col">
         <LanguageProvider>
           <AppStateProvider>
-            <Navbar />
-            <main className="flex-1">{children}</main>
-            <Footer />
+            <AppFrame>{children}</AppFrame>
           </AppStateProvider>
         </LanguageProvider>
       </body>

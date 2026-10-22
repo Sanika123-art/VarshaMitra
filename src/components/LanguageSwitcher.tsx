@@ -2,40 +2,43 @@
 
 import { useLanguage } from "@/i18n/LanguageContext";
 import { cn } from "@/lib/utils";
-import { Languages } from "lucide-react";
 
-export default function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
+/** Prominent English / Marathi switcher. Changes language in place — route and selections are untouched. */
+export default function LanguageSwitcher({ onDark = false }: { onDark?: boolean }) {
   const { language, setLanguage, t } = useLanguage();
+
+  const option = (code: "en" | "mr", label: string, lang: string) => (
+    <button
+      type="button"
+      lang={lang}
+      onClick={() => setLanguage(code)}
+      aria-pressed={language === code}
+      className={cn(
+        "min-h-8 rounded-[5px] px-3 text-sm font-semibold transition-colors",
+        language === code
+          ? onDark
+            ? "bg-white text-forest-dark"
+            : "bg-forest text-white"
+          : onDark
+            ? "text-white/85 hover:bg-white/12"
+            : "text-ink-muted hover:text-ink"
+      )}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div
-      className="flex items-center gap-1 rounded-full border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-1"
       role="group"
-      aria-label={t("nav.language")}
+      aria-label={t("shell.languageLabel")}
+      className={cn(
+        "inline-flex items-center rounded-md border p-0.5",
+        onDark ? "border-white/30" : "border-line-strong bg-surface-raised"
+      )}
     >
-      {!compact && <Languages size={14} className="ml-1.5 text-[var(--color-forest)]" aria-hidden />}
-      <button
-        type="button"
-        onClick={() => setLanguage("en")}
-        aria-pressed={language === "en"}
-        className={cn(
-          "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-          language === "en" ? "bg-[var(--color-forest)] text-white" : "text-[var(--color-ink)]/70 hover:text-[var(--color-ink)]"
-        )}
-      >
-        EN
-      </button>
-      <button
-        type="button"
-        onClick={() => setLanguage("mr")}
-        aria-pressed={language === "mr"}
-        className={cn(
-          "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-          language === "mr" ? "bg-[var(--color-forest)] text-white" : "text-[var(--color-ink)]/70 hover:text-[var(--color-ink)]"
-        )}
-      >
-        मराठी
-      </button>
+      {option("en", "English", "en")}
+      {option("mr", "मराठी", "mr")}
     </div>
   );
 }

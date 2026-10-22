@@ -8,7 +8,6 @@ import { allBlocks } from "@/data/locations";
 import type { Block } from "@/types";
 import { mapLayers, layerLabelKey, type MapLayer } from "./riskLayers";
 import BlockPanel from "./BlockPanel";
-import { PrototypeTag } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 const RiskMap = dynamic(() => import("./RiskMap"), {
@@ -45,7 +44,9 @@ export default function RiskMapExperience({ initialBlockId }: { initialBlockId?:
               <h1 className="font-display text-lg text-[var(--color-ink)] sm:text-xl">
                 {t("riskMapPage.title")}
               </h1>
-              <PrototypeTag className="hidden sm:inline-flex" />
+              <span className="hidden sm:inline-flex items-center rounded-full bg-forest-soft px-2.5 py-0.5 text-[11px] font-semibold text-forest">
+                Maharashtra 36 Districts
+              </span>
             </div>
             <p className="mt-0.5 text-xs text-[var(--color-ink)]/50 max-w-xs">
               {t("riskMapPage.subtitle")}

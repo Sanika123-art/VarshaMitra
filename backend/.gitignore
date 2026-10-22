@@ -1,0 +1,28 @@
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Environment secrets
+.env
+!.env.example
+
+# Disposable scratch scripts
+scratch/
+
+# Local SQLite databases
+*.sqlite
+*.sqlite3
+*.db
+data/*.sqlite
+data/*.sqlite3
+
+# Test artifacts
+.coverage
+htmlcov/

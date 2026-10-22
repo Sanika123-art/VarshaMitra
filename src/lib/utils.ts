@@ -5,25 +5,23 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
 }
 
+/** Severity order, most severe first. */
+export const RISK_LEVELS: RiskLevel[] = ["critical", "high", "moderate", "low"];
+
+/** Hex fills for places CSS variables cannot be used (map markers). Mirrors globals.css tokens. */
 export const riskColor: Record<RiskLevel, string> = {
-  low: "#4C7A4F",
-  moderate: "#C8952E",
-  high: "#B5502E",
-  critical: "#7A2E1F",
+  low: "#4c8a58",
+  moderate: "#d19a2a",
+  high: "#d0642a",
+  critical: "#9b1f1f",
 };
 
-export const riskBg: Record<RiskLevel, string> = {
-  low: "bg-[#4C7A4F]",
-  moderate: "bg-[#C8952E]",
-  high: "bg-[#B5502E]",
-  critical: "bg-[#7A2E1F]",
-};
-
-export const riskTextClass: Record<RiskLevel, string> = {
-  low: "text-[#3A5F3D]",
-  moderate: "text-[#8C6420]",
-  high: "text-[#93401E]",
-  critical: "text-[#5E2317]",
+/** CSS-variable references for charts and inline styles. */
+export const riskVar: Record<RiskLevel, string> = {
+  low: "var(--color-risk-low)",
+  moderate: "var(--color-risk-moderate)",
+  high: "var(--color-risk-high)",
+  critical: "var(--color-risk-critical)",
 };
 
 export const riskLabelKey: Record<RiskLevel, string> = {
@@ -35,4 +33,9 @@ export const riskLabelKey: Record<RiskLevel, string> = {
 
 export function riskOrder(risk: RiskLevel): number {
   return { critical: 0, high: 1, moderate: 2, low: 3 }[risk];
+}
+
+/** Pick the Marathi or English name of any entity that carries both. */
+export function pickName(entity: { name: string; nameMr: string }, language: "en" | "mr"): string {
+  return language === "mr" ? entity.nameMr : entity.name;
 }

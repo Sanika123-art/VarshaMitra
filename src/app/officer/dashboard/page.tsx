@@ -1,244 +1,434 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
-import { AlertTriangle, ChevronRight, Shield, MapPin, BarChart3, Activity } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  ShieldAlert,
+  BarChart3,
+  Sprout,
+  ArrowRight,
+  TrendingUp,
+  Layers,
+  CheckCircle2,
+} from "lucide-react";
 import { useTranslation } from "@/i18n/LanguageContext";
-import { regionRiskCounts, highRiskLocations, cropExposure, alerts } from "@/data/officer";
-import { getBlock } from "@/data/locations";
+import {
+  regionRiskCounts,
+  highRiskLocations,
+  cropExposure,
+  alerts,
+} from "@/data/officer";
+import { getBlock, getDistrict } from "@/data/locations";
 import { getForecast } from "@/data/climate";
 import { deriveAdvisory } from "@/data/advisories";
-import { PrototypeTag, SectionHeading, AlertCard } from "@/components/ui";
+import { pickName, riskColor, riskLabelKey } from "@/lib/utils";
 import RiskBadge from "@/components/RiskBadge";
-import { riskLabelKey } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import type { RiskLevel } from "@/types";
+import { api, type BlockDetail, type RiskAssessmentResponse } from "@/lib/api";
+import {
+  PageHeader,
+  MetaChip,
+  Card,
+  CardHeader,
+  DataStatus,
+  AlertListItem,
+  ButtonLink,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui";
 
 export default function OfficerDashboard() {
   const { t, language } = useTranslation();
-  const counts = regionRiskCounts();
-  const locations = highRiskLocations();
-  const [inspectId, setInspectId] = useState<string | null>(locations[0]?.blockId ?? null);
+  const fallbackCounts = regionRiskCounts();
+  const fallbackLocations = highRiskLocations();
+
+  const [liveBlocks, setLiveBlocks] = useState<BlockDetail[]>([]);
+  const [liveRisks, setLiveRisks] = useState<Record<string, RiskAssessmentResponse>>({});
+  const [isLive, setIsLive] = useState(false);
+
+  const [inspectId, setInspectId] = useState<string | null>(fallbackLocations[0]?.blockId ?? null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadData() {
+      try {
+        const blocks = await api.getBlocks();
+        if (cancelled || !blocks.length) return;
+        setLiveBlocks(blocks);
+
+        // Fetch risk assessments in parallel for all blocks
+        const riskResults = await Promise.allSettled(
+          blocks.map((b) => api.getClimateRisk(b.id))
+        );
+
+        if (cancelled) return;
+        const riskMap: Record<string, RiskAssessmentResponse> = {};
+        riskResults.forEach((r) => {
+          if (r.status === "fulfilled") {
+            riskMap[r.value.block_id] = r.value;
+          }
+        });
+
+        if (Object.keys(riskMap).length > 0) {
+          setLiveRisks(riskMap);
+          setIsLive(true);
+        }
+      } catch {
+        // Fallback remains active
+      }
+    }
+
+    loadData();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Compute live counts if live data is available
+  const counts = isLive
+    ? Object.values(liveRisks).reduce(
+        (acc, curr) => {
+          const r = curr.overall_risk;
+          if (r !== "insufficient_data" && r in acc) {
+            acc[r as RiskLevel]++;
+          }
+          return acc;
+        },
+        { critical: 0, high: 0, moderate: 0, low: 0 } as Record<RiskLevel, number>
+      )
+    : fallbackCounts;
+
+  const total = counts.critical + counts.high + counts.moderate + counts.low || 1;
+
   const inspectBlock = inspectId ? getBlock(inspectId) : undefined;
+  const inspectDistrict = inspectBlock ? getDistrict(inspectBlock.districtId) : undefined;
   const inspectForecast = inspectBlock ? getForecast(inspectBlock.id, 14) : null;
   const inspectAdvisory = inspectBlock ? deriveAdvisory(inspectBlock.id, "soybean", "sowing") : null;
 
-  const total = counts.critical + counts.high + counts.moderate + counts.low;
-
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <PrototypeTag />
-      <div className="mt-4">
-        <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-sky)]">
-          {t("login.roleOfficer")}
-        </p>
-        <h1 className="mt-2 font-display text-4xl leading-tight text-[var(--color-ink)] sm:text-5xl">
-          {t("officer.dashboardTitle")}
-        </h1>
-      </div>
+    <div className="space-y-6">
+      {/* ── Page Header ────────────────────────────────────── */}
+      <PageHeader
+        eyebrow={t("officerDashboard.eyebrow")}
+        title={t("officer.dashboardTitle")}
+        description={t("officerDashboard.subtitle")}
+        actions={
+          <div className="flex gap-2">
+            <ButtonLink href="/officer/risk-map" variant="primary" size="sm">
+              <Layers size={15} aria-hidden />
+              {t("nav.riskMap")}
+            </ButtonLink>
+            <ButtonLink href="/officer/insights" variant="secondary" size="sm">
+              <TrendingUp size={15} aria-hidden />
+              {t("nav.insights")}
+            </ButtonLink>
+          </div>
+        }
+      >
+        <MetaChip>
+          <span className="font-semibold text-ink">{total}</span> {t("officerDashboard.monitoredBlocks")}
+        </MetaChip>
+        <MetaChip>
+          <span className="font-semibold text-risk-critical-ink">{counts.critical}</span> {t("common.riskCritical")}
+        </MetaChip>
+        <MetaChip>
+          <span className="font-semibold text-risk-high-ink">{counts.high}</span> {t("common.riskHigh")}
+        </MetaChip>
+      </PageHeader>
 
-      {/* ── Risk Distribution Bar ──────────────────────────── */}
-      <div className="mt-8 rounded-3xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-6 shadow-[var(--shadow-sm)]">
-        <div className="flex items-center gap-2">
-          <BarChart3 size={16} className="text-[var(--color-ink)]/45" />
-          <p className="text-sm font-semibold text-[var(--color-ink)]/70">
-            {t("officer.riskDistribution")}
-          </p>
+      {/* ── Provenance Banner ───────────────────────────────── */}
+      <DataStatus kind="assessment" />
+
+      {/* ── Regional Risk Distribution ──────────────────────── */}
+      <Card tone="default">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
+          <div className="flex items-center gap-2">
+            <BarChart3 size={18} className="text-forest" aria-hidden />
+            <h2 className="font-serif text-base font-semibold text-ink">
+              {t("officer.riskDistribution")}
+            </h2>
+          </div>
+          <span className="text-xs text-ink-muted">
+            {t("officerDashboard.totalCoverage", { count: total })}
+          </span>
         </div>
 
-        {/* Visual bar */}
-        <div className="mt-4 flex h-10 overflow-hidden rounded-xl">
+        {/* Proportional distribution bar */}
+        <div className="mt-4 flex h-7 overflow-hidden rounded-md border border-line">
           {[
-            { count: counts.critical, color: "var(--color-critical)", label: t("common.riskCritical") },
-            { count: counts.high, color: "var(--color-clay)", label: t("common.riskHigh") },
-            { count: counts.moderate, color: "var(--color-amber)", label: t("common.riskModerate") },
-            { count: counts.low, color: "var(--color-moss)", label: t("common.riskLow") },
-          ].map((seg) => (
+            { level: "critical" as RiskLevel, count: counts.critical, bg: "bg-risk-critical" },
+            { level: "high" as RiskLevel, count: counts.high, bg: "bg-risk-high" },
+            { level: "moderate" as RiskLevel, count: counts.moderate, bg: "bg-risk-moderate" },
+            { level: "low" as RiskLevel, count: counts.low, bg: "bg-risk-low" },
+          ].map((seg) => {
+            const pct = (seg.count / total) * 100;
+            if (pct === 0) return null;
+            return (
+              <div
+                key={seg.level}
+                className={`${seg.bg} flex items-center justify-center text-[11px] font-bold text-white transition-all`}
+                style={{ width: `${pct}%` }}
+                title={`${t(riskLabelKey[seg.level])}: ${seg.count}`}
+              >
+                {pct > 12 && `${seg.count}`}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Legend stats */}
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { level: "critical" as RiskLevel, count: counts.critical },
+            { level: "high" as RiskLevel, count: counts.high },
+            { level: "moderate" as RiskLevel, count: counts.moderate },
+            { level: "low" as RiskLevel, count: counts.low },
+          ].map((item) => (
             <div
-              key={seg.label}
-              className="flex items-center justify-center text-xs font-bold text-white transition-all duration-500"
-              style={{
-                width: `${(seg.count / total) * 100}%`,
-                backgroundColor: seg.color,
-                minWidth: seg.count > 0 ? "2rem" : "0",
-              }}
+              key={item.level}
+              className="rounded-lg border border-line bg-surface-raised p-3"
             >
-              {seg.count > 0 && seg.count}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-ink-muted">{t(riskLabelKey[item.level])}</span>
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ background: riskColor[item.level] }}
+                />
+              </div>
+              <p className="mt-1 font-serif text-xl font-bold tabular text-ink">
+                {item.count}
+                <span className="ml-1 text-xs font-normal text-ink-muted">
+                  ({Math.round((item.count / total) * 100)}%)
+                </span>
+              </p>
             </div>
           ))}
         </div>
+      </Card>
 
-        {/* Legend */}
-        <div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--color-ink)]/55">
-          {[
-            { count: counts.critical, label: t("officer.criticalRiskBlocks"), color: "var(--color-critical)" },
-            { count: counts.high, label: t("officer.highRiskBlocks"), color: "var(--color-clay)" },
-            { count: counts.moderate, label: t("officer.moderateRiskBlocks"), color: "var(--color-amber)" },
-            { count: counts.low, label: t("common.riskLow"), color: "var(--color-moss)" },
-          ].map((item) => (
-            <span key={item.label} className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-              <span className="font-semibold" style={{ color: item.color }}>{item.count}</span>
-              {item.label}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Main content grid ──────────────────────────────── */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-5">
-        {/* High risk locations list */}
-        <div className="rounded-3xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-6 shadow-[var(--shadow-sm)] lg:col-span-2">
-          <div className="flex items-center gap-2">
-            <MapPin size={16} className="text-[var(--color-clay)]" />
-            <p className="text-sm font-semibold text-[var(--color-ink)]/70">
-              {t("officer.highRiskLocations")}
+      {/* ── Locations Requiring Attention + Drill-down Panel ─── */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Table: Locations (7 cols) */}
+        <Card tone="default" className="lg:col-span-7" padded={false}>
+          <div className="border-b border-line p-5">
+            <h3 className="font-serif text-base font-semibold text-ink">
+              {t("officer.locationsTitle")}
+            </h3>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              {t("officerDashboard.inspectInstructions")}
             </p>
           </div>
-          <ul className="mt-4 space-y-1">
-            {locations.map((loc) => (
-              <li key={loc.blockId}>
-                <button
-                  onClick={() => setInspectId(loc.blockId)}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left text-sm transition-all",
-                    inspectId === loc.blockId
-                      ? "bg-[var(--color-forest)]/10 shadow-[var(--shadow-sm)]"
-                      : "hover:bg-[var(--color-paper)]"
-                  )}
-                >
-                  <span>
-                    <span className="font-semibold text-[var(--color-ink)]">
-                      {language === "mr" ? loc.blockNameMr : loc.blockName}
-                    </span>
-                    <span className="ml-1.5 text-xs text-[var(--color-ink)]/45">{loc.districtName}</span>
-                  </span>
-                  <RiskBadge risk={loc.risk} label={t(riskLabelKey[loc.risk])} size="sm" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
 
-        {/* Inspect panel */}
-        <div className="rounded-3xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-6 shadow-[var(--shadow-sm)] lg:col-span-3">
-          <div className="flex items-center gap-2">
-            <Shield size={16} className="text-[var(--color-forest)]" />
-            <p className="text-sm font-semibold text-[var(--color-ink)]/70">{t("officer.inspectBlock")}</p>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("common.location")}</TableHead>
+                  <TableHead>{t("common.risk")}</TableHead>
+                  <TableHead className="text-right">{t("climatePage.drySpellRisk")}</TableHead>
+                  <TableHead className="text-right">{t("climatePage.heavyRainRisk")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {fallbackLocations.map((loc) => {
+                  const b = getBlock(loc.blockId);
+                  if (!b) return null;
+                  const isSelected = b.id === inspectId;
+                  return (
+                    <TableRow
+                      key={loc.blockId}
+                      onClick={() => setInspectId(b.id)}
+                      className={`cursor-pointer transition-colors ${
+                        isSelected ? "bg-forest-soft/40 font-semibold" : "hover:bg-paper-deep"
+                      }`}
+                    >
+                      <TableCell>
+                        <div>
+                          <p className="text-sm font-semibold text-ink">
+                            {pickName(b, language)}
+                          </p>
+                          <p className="text-xs text-ink-muted">
+                            {loc.districtName}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <RiskBadge risk={loc.risk} size="sm" />
+                      </TableCell>
+                      <TableCell className="text-right tabular text-sm">
+                        {b.drySpellProbability}%
+                      </TableCell>
+                      <TableCell className="text-right tabular text-sm">
+                        {b.heavyRainProbability}%
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
-          {inspectBlock && inspectForecast && inspectAdvisory ? (
-            <div className="mt-4 slide-up">
-              <div className="flex items-center justify-between">
-                <h3 className="font-display text-2xl text-[var(--color-ink)]">
-                  {language === "mr" ? inspectBlock.nameMr : inspectBlock.name}
-                </h3>
-                <RiskBadge risk={inspectBlock.risk} label={t(riskLabelKey[inspectBlock.risk])} />
+        </Card>
+
+        {/* Drill-down Inspector Panel (5 cols) */}
+        <Card tone="muted" className="lg:col-span-5 flex flex-col justify-between">
+          {inspectBlock && inspectForecast ? (
+            <div>
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <div>
+                  <p className="text-xs font-semibold text-ink-muted uppercase">
+                    {inspectDistrict ? pickName(inspectDistrict, language) : ""}
+                  </p>
+                  <h3 className="font-serif text-lg font-bold text-ink">
+                    {pickName(inspectBlock, language)}
+                  </h3>
+                </div>
+                <RiskBadge risk={inspectBlock.risk} size="md" />
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2.5 text-center">
-                <MiniStat value={`${inspectForecast.monsoonOnsetProbability}%`} label={t("climatePage.onsetProbability")} />
-                <MiniStat value={`${inspectForecast.drySpellProbability}%`} label={t("climatePage.drySpellRisk")} />
-                <MiniStat value={`${inspectForecast.heavyRainProbability}%`} label={t("climatePage.heavyRainRisk")} />
+
+              {/* Climate summary */}
+              <div className="mt-4 grid grid-cols-2 gap-2 text-center text-xs">
+                <div className="rounded border border-line bg-surface p-2">
+                  <p className="text-ink-muted">{t("climatePage.onsetProbability")}</p>
+                  <p className="font-serif text-base font-bold text-ink tabular">
+                    {inspectForecast.monsoonOnsetProbability}%
+                  </p>
+                </div>
+                <div className="rounded border border-line bg-surface p-2">
+                  <p className="text-ink-muted">{t("climatePage.drySpellRisk")}</p>
+                  <p className="font-serif text-base font-bold text-ink tabular">
+                    {inspectForecast.drySpellProbability}%
+                  </p>
+                </div>
               </div>
-              <div className="mt-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-ink)]/50">
-                  {t("officer.riskDrivers")}
+
+              {/* Agricultural Impact */}
+              <div className="mt-4 rounded-md border border-line bg-surface p-3">
+                <p className="text-xs font-bold text-ink uppercase tracking-wide">
+                  {t("riskMapPage.agriculturalImpact")}
                 </p>
-                <ul className="mt-2 space-y-1.5">
+                <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                  {inspectBlock.agriculturalImpact}
+                </p>
+              </div>
+
+              {/* Advisory recommendation for this block */}
+              {inspectAdvisory && (
+                <div className="mt-3 rounded-md border border-forest/30 bg-forest-soft/30 p-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-forest uppercase tracking-wide">
+                    <Sprout size={14} aria-hidden />
+                    <span>{t("advisory.recommendedAction")}</span>
+                  </div>
+                  <p className="mt-1 text-xs font-medium text-ink">
+                    {t(
+                      `advisoryTemplates.${inspectAdvisory.concern}.${inspectAdvisory.isSowing ? "headlineSowing" : "headlineOther"}`,
+                      { crop: t("crops.soybean"), stage: t("cropStages.sowing") }
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {/* Risk Drivers */}
+              <div className="mt-4">
+                <p className="text-xs font-bold text-ink uppercase tracking-wide">
+                  {t("riskMapPage.whyAtRisk")}
+                </p>
+                <ul className="mt-2 space-y-1.5 text-xs text-ink-muted">
                   {inspectBlock.riskDrivers.map((d) => (
-                    <li key={d} className="flex items-start gap-2 text-sm text-[var(--color-ink)]/60">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-clay)]" />
+                    <li key={d} className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-forest" />
                       {t(`riskDrivers.${d}`)}
                     </li>
                   ))}
                 </ul>
               </div>
-              <div className="mt-4 rounded-xl bg-[var(--color-forest)]/8 border border-[var(--color-forest)]/15 px-4 py-3 text-sm">
-                <span className="font-bold text-[var(--color-forest-dark)]">
-                  {t("officer.recommendedAction")}:
-                </span>{" "}
-                <span className="text-[var(--color-ink)]/70">
-                  {t(
-                    `advisoryTemplates.${inspectAdvisory.concern}.headlineSowing`,
-                    { crop: t(inspectAdvisory.cropNameKey), stage: t(inspectAdvisory.stageNameKey) }
-                  )}
-                </span>
-              </div>
-              <Link
-                href="/officer/risk-map"
-                className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-forest)] transition-colors hover:text-[var(--color-forest-dark)]"
-              >
-                {t("nav.riskMap")}
-                <ChevronRight size={14} />
-              </Link>
             </div>
           ) : (
-            <p className="mt-4 text-sm text-[var(--color-ink)]/50">{t("riskMapPage.selectPrompt")}</p>
+            <p className="text-xs text-ink-muted">{t("officerDashboard.selectLocationToInspect")}</p>
           )}
-        </div>
+
+          <div className="mt-6 border-t border-line pt-3">
+            <ButtonLink
+              href={`/officer/risk-map`}
+              variant="secondary"
+              size="sm"
+              className="w-full"
+            >
+              {t("officerDashboard.viewOnRiskMap")}
+              <ArrowRight size={14} aria-hidden />
+            </ButtonLink>
+          </div>
+        </Card>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Crop exposure */}
-        <div className="rounded-3xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-6 shadow-[var(--shadow-sm)]">
-          <div className="flex items-center gap-2">
-            <Activity size={16} className="text-[var(--color-amber)]" />
-            <p className="text-sm font-semibold text-[var(--color-ink)]/70">{t("officer.cropExposure")}</p>
+      {/* ── Regional Crop Exposure & Alerts ─────────────────── */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Crop exposure table (7 cols) */}
+        <Card tone="default" className="lg:col-span-7" padded={false}>
+          <div className="border-b border-line p-5">
+            <h3 className="font-serif text-base font-semibold text-ink">
+              {t("officer.cropExposureTitle")}
+            </h3>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              {t("officerDashboard.cropExposureDesc")}
+            </p>
           </div>
-          <ul className="mt-4 space-y-3">
-            {cropExposure.map((c) => (
-              <li key={c.cropKey} className="flex items-center justify-between text-sm">
-                <span className="font-medium text-[var(--color-ink)]/80">{t(c.cropKey)}</span>
-                <span className="flex items-center gap-2.5">
-                  <span className="text-xs text-[var(--color-ink)]/45">{c.exposedBlocks} blocks</span>
-                  <RiskBadge risk={c.riskWeighted} label={t(riskLabelKey[c.riskWeighted])} size="sm" />
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
 
-        {/* Climate alerts */}
-        <div className="rounded-3xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-6 shadow-[var(--shadow-sm)]">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={16} className="text-[var(--color-clay)]" />
-            <p className="text-sm font-semibold text-[var(--color-ink)]/70">{t("officer.climateAlerts")}</p>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("common.crop")}</TableHead>
+                  <TableHead className="text-right">{t("officer.exposedBlocks")}</TableHead>
+                  <TableHead>{t("officer.riskWeighted")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cropExposure.map((ce) => (
+                  <TableRow key={ce.cropKey}>
+                    <TableCell className="font-semibold text-ink">
+                      {t(ce.cropKey)}
+                    </TableCell>
+                    <TableCell className="text-right tabular">
+                      {ce.exposedBlocks} {t("officerDashboard.blocks")}
+                    </TableCell>
+                    <TableCell>
+                      <RiskBadge risk={ce.riskWeighted} size="sm" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-          <div className="mt-4 space-y-2">
-            {alerts.map((a) => {
-              const b = getBlock(a.blockId);
+        </Card>
+
+        {/* Regional Alert Feed (5 cols) */}
+        <Card tone="default" className="lg:col-span-5">
+          <CardHeader
+            icon={ShieldAlert}
+            title={t("officerDashboard.alertsTitle")}
+            description={t("officerDashboard.regionalAlertsDesc")}
+          />
+          <ul className="mt-4 space-y-2.5">
+            {alerts.slice(0, 4).map((al) => {
+              const b = getBlock(al.blockId);
+              const locName = b ? pickName(b, language) : al.blockId;
               return (
-                <AlertCard
-                  key={a.id}
-                  severity={a.severity}
-                  title={t(a.titleKey)}
-                  location={b ? (language === "mr" ? b.nameMr : b.name) : ""}
-                  time={t("farmer.hoursAgo", { h: a.timeAgoHours })}
+                <AlertListItem
+                  key={al.id}
+                  severity={al.severity}
+                  title={t(al.titleKey)}
+                  location={locName}
+                  time={`${al.timeAgoHours}h ago`}
                 />
               );
             })}
-          </div>
-        </div>
+          </ul>
+        </Card>
       </div>
-
-      {/* Data status */}
-      <div className="mt-6 rounded-3xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-6 shadow-[var(--shadow-sm)]">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-[var(--color-moss)] animate-pulse" />
-          <p className="text-sm font-semibold text-[var(--color-ink)]/70">{t("officer.dataStatus")}</p>
-        </div>
-        <div className="mt-3 flex flex-col gap-1.5 text-sm text-[var(--color-ink)]/55 sm:flex-row sm:gap-6">
-          <span>{t("officer.modelStatus")}</span>
-          <span>{t("officer.dataFeedStatus")}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MiniStat({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="rounded-xl bg-[var(--color-paper)] border border-[var(--color-line)]/50 p-3">
-      <p className="tabular font-display text-xl text-[var(--color-ink)]">{value}</p>
-      <p className="mt-0.5 text-[10px] leading-tight text-[var(--color-ink)]/50">{label}</p>
     </div>
   );
 }

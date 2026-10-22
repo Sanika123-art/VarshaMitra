@@ -1,6 +1,12 @@
-# Future Backend
+# Future Backend (Historical Planning Document)
 
-**No backend is implemented in this repository.** This prototype is
+> [!NOTE]
+> **Implementation Status Notice (Phases 1–6 Completed)**:
+> The backend sketched conceptually below has now been implemented as a Python FastAPI service under [`backend/`](./backend/) (Phases 1–5) and integrated with the Next.js frontend (Phase 6).
+>
+> For the active backend architecture, live endpoints, agronomic models, and run instructions, please refer to [`backend/README.md`](./backend/README.md).
+
+**Historical context from initial prototype:** This prototype was originally
 frontend-only, reading from local TypeScript mock data. This document
 sketches the backend a production version would need.
 

@@ -1,0 +1,812 @@
+"""Authoritative crop agronomic requirements, sowing calendars, and growth stages for Maharashtra.
+
+PROVENANCE & SCIENTIFIC SOURCES:
+- Mahatma Phule Krishi Vidyapeeth (MPKV), Rahuri: "Kharif & Rabi Crop Production Technologies & Package of Practices".
+- Dr. Panjabrao Deshmukh Krishi Vidyapeeth (PDKV), Akola: "Crop Weather Calendars for Vidarbha & Khandesh".
+- Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani: "Agro-Advisories for Marathwada".
+- ICAR-Central Research Institute for Dryland Agriculture (ICAR-CRIDA): "Contingency Crop Planning for Maharashtra".
+- IMD Agrimet: "Crop Weather Calendars for Maharashtra State".
+"""
+
+from typing import Dict, List, Optional
+from app.schemas.agronomy import (
+    CropRequirement,
+    CropSeason,
+    GrowthStageItem,
+    SowingWindowDefinition,
+)
+from app.schemas.soil import SoilTextureClass
+
+RAW_CROPS: Dict[str, CropRequirement] = {
+    # =========================================================================
+    # 1. SOYBEAN (सोयाबीन) - Kharif Oilseed
+    # =========================================================================
+    "soybean": CropRequirement(
+        crop_id="soybean",
+        name="Soybean",
+        name_mr="सोयाबीन",
+        scientific_name="Glycine max",
+        season=CropSeason.KHARIF,
+        crop_category="oilseed",
+        duration_days_min=95,
+        duration_days_max=105,
+        agroclimatic_zones=[
+            "Scarcity Zone",
+            "Central Maharashtra Plateau",
+            "Western Maharashtra Sub-montane",
+            "Khandesh Tapi Basin",
+        ],
+        sowing_window=SowingWindowDefinition(
+            optimal_start_month=6,
+            optimal_start_day=15,
+            optimal_end_month=7,
+            optimal_end_day=15,
+            delayed_cutoff_month=7,
+            delayed_cutoff_day=25,
+            rationale=(
+                "Requires minimum 75-100 mm cumulative monsoon rainfall (vapsa moisture) before sowing. "
+                "Sowing after July 15 results in significant yield reduction and increased stem fly / girdle beetle infestation."
+            ),
+        ),
+        suitable_textures=[
+            SoilTextureClass.BLACK_COTTON_VERTISOL,
+            SoilTextureClass.CLAY,
+            SoilTextureClass.CLAY_LOAM,
+            SoilTextureClass.LOAM,
+        ],
+        min_soil_ph=6.0,
+        max_soil_ph=8.2,
+        min_soil_depth_cm=45,
+        drainage_preference="well_drained",
+        min_seasonal_rainfall_mm=550.0,
+        max_seasonal_rainfall_mm=1000.0,
+        sowing_soil_moisture_min_mm=75.0,
+        growth_stages=[
+            GrowthStageItem(
+                stage_id="sowing",
+                name="Sowing & Germination",
+                name_mr="पेरणी व उगवण",
+                start_day=0,
+                end_day=10,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=True,
+                sensitivities=["waterlogging", "crust_formation", "severe_dry_spell"],
+            ),
+            GrowthStageItem(
+                stage_id="vegetative",
+                name="Vegetative & Branching",
+                name_mr="शाकीय वाढ व फांद्या फुटणे",
+                start_day=11,
+                end_day=35,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=False,
+                sensitivities=["weed_competition", "stem_borer"],
+            ),
+            GrowthStageItem(
+                stage_id="flowering",
+                name="Flowering",
+                name_mr="फुलधारणा",
+                start_day=36,
+                end_day=55,
+                water_requirement_tier="critical",
+                is_critical_moisture_stage=True,
+                sensitivities=["drought_stress", "flower_drop", "high_temperature"],
+            ),
+            GrowthStageItem(
+                stage_id="pod_development",
+                name="Pod Formation & Seed Filling",
+                name_mr="शेंगा भरणे व दाणे भरणे",
+                start_day=56,
+                end_day=80,
+                water_requirement_tier="critical",
+                is_critical_moisture_stage=True,
+                sensitivities=["moisture_stress", "spodoptera_caterpillar"],
+            ),
+            GrowthStageItem(
+                stage_id="maturity",
+                name="Physiological Maturity & Harvest",
+                name_mr="पक्वता व काढणी",
+                start_day=81,
+                end_day=105,
+                water_requirement_tier="low",
+                is_critical_moisture_stage=False,
+                sensitivities=["unseasonal_rainfall", "pod_shattering"],
+            ),
+        ],
+        recommended_varieties=["JS-335", "JS-9305", "Phule Kalyani (DS-228)", "Phule Agrani (KDS-344)", "MACS-1407"],
+        intercropping_options=["Soybean + Pigeonpea (4:2)", "Soybean + Cotton (1:1)"],
+        source_citation="MPKV Rahuri Kharif Crop Production Guide 2024; ICAR-IISR Indore Tech Bulletin.",
+        publisher="Mahatma Phule Krishi Vidyapeeth, Rahuri",
+        version="v2024.1",
+    ),
+
+    # =========================================================================
+    # 2. COTTON (कापूस) - Kharif Fibre & Cash Crop
+    # =========================================================================
+    "cotton": CropRequirement(
+        crop_id="cotton",
+        name="Cotton",
+        name_mr="कापूस",
+        scientific_name="Gossypium hirsutum",
+        season=CropSeason.KHARIF,
+        crop_category="fibre",
+        duration_days_min=150,
+        duration_days_max=180,
+        agroclimatic_zones=[
+            "Scarcity Zone",
+            "Central Maharashtra Plateau",
+            "Khandesh Tapi Basin",
+            "Vidarbha Purna Basin",
+        ],
+        sowing_window=SowingWindowDefinition(
+            optimal_start_month=6,
+            optimal_start_day=1,
+            optimal_end_month=6,
+            optimal_end_day=30,
+            delayed_cutoff_month=7,
+            delayed_cutoff_day=10,
+            rationale=(
+                "Pre-monsoon sowing under protective irrigation is recommended in late May/early June. "
+                "Rainfed sowing requires minimum 75 mm soaking rainfall. Sowing beyond July 10 increases Pink Bollworm susceptibility."
+            ),
+        ),
+        suitable_textures=[
+            SoilTextureClass.BLACK_COTTON_VERTISOL,
+            SoilTextureClass.CLAY,
+            SoilTextureClass.CLAY_LOAM,
+        ],
+        min_soil_ph=6.5,
+        max_soil_ph=8.5,
+        min_soil_depth_cm=60,
+        drainage_preference="well_drained",
+        min_seasonal_rainfall_mm=600.0,
+        max_seasonal_rainfall_mm=1100.0,
+        sowing_soil_moisture_min_mm=75.0,
+        growth_stages=[
+            GrowthStageItem(
+                stage_id="sowing",
+                name="Sowing & Emergence",
+                name_mr="पेरणी व उगवण",
+                start_day=0,
+                end_day=12,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=True,
+                sensitivities=["seedling_damping_off", "crust_formation"],
+            ),
+            GrowthStageItem(
+                stage_id="vegetative",
+                name="Square Formation (Squaring)",
+                name_mr="पात्या लागणे",
+                start_day=13,
+                end_day=60,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=False,
+                sensitivities=["sucking_pests", "thrips", "aphids"],
+            ),
+            GrowthStageItem(
+                stage_id="flowering",
+                name="Flowering & Boll Development",
+                name_mr="फुलधारणा व बोंड भरणे",
+                start_day=61,
+                end_day=110,
+                water_requirement_tier="critical",
+                is_critical_moisture_stage=True,
+                sensitivities=["boll_shedding", "moisture_stress", "pink_bollworm"],
+            ),
+            GrowthStageItem(
+                stage_id="maturity",
+                name="Boll Bursting & Picking",
+                name_mr="बोंडे फुटणे व वेचणी",
+                start_day=111,
+                end_day=170,
+                water_requirement_tier="low",
+                is_critical_moisture_stage=False,
+                sensitivities=["unseasonal_rainfall", "lint_discoloration"],
+            ),
+        ],
+        recommended_varieties=["Bt Hybrid RCH-2", "Ajeet-155", "Mallika", "Phule 688", "PKV Rajat"],
+        intercropping_options=["Cotton + Soybean (1:1)", "Cotton + Pigeonpea (6:1 or 8:1)", "Cotton + Green Gram (1:1)"],
+        source_citation="CICR Nagpur Cotton Package of Practices; PDKV Akola Agroadvisories.",
+        publisher="ICAR-Central Institute for Cotton Research & PDKV Akola",
+        version="v2024.1",
+    ),
+
+    # =========================================================================
+    # 3. PIGEONPEA (तूर / अरहर) - Kharif Long-Duration Pulse
+    # =========================================================================
+    "pigeonpea": CropRequirement(
+        crop_id="pigeonpea",
+        name="Pigeonpea (Tur)",
+        name_mr="तूर",
+        scientific_name="Cajanus cajan",
+        season=CropSeason.KHARIF,
+        crop_category="pulse",
+        duration_days_min=140,
+        duration_days_max=175,
+        agroclimatic_zones=[
+            "Scarcity Zone",
+            "Central Maharashtra Plateau",
+            "Western Maharashtra Sub-montane",
+            "Marathwada Godavari Basin",
+            "Khandesh",
+        ],
+        sowing_window=SowingWindowDefinition(
+            optimal_start_month=6,
+            optimal_start_day=15,
+            optimal_end_month=7,
+            optimal_end_day=15,
+            delayed_cutoff_month=7,
+            delayed_cutoff_day=20,
+            rationale=(
+                "Deep-rooted drought-hardy pulse. Sowing should coincide with onset of southwest monsoon. "
+                "Cannot tolerate waterlogging; ridge and furrow sowing strongly recommended in deep soils."
+            ),
+        ),
+        suitable_textures=[
+            SoilTextureClass.BLACK_COTTON_VERTISOL,
+            SoilTextureClass.CLAY_LOAM,
+            SoilTextureClass.LOAM,
+            SoilTextureClass.SANDY_CLAY_LOAM,
+        ],
+        min_soil_ph=6.5,
+        max_soil_ph=8.2,
+        min_soil_depth_cm=50,
+        drainage_preference="well_drained",
+        min_seasonal_rainfall_mm=500.0,
+        max_seasonal_rainfall_mm=900.0,
+        sowing_soil_moisture_min_mm=60.0,
+        growth_stages=[
+            GrowthStageItem(
+                stage_id="sowing",
+                name="Sowing & Establishment",
+                name_mr="पेरणी व उगवण",
+                start_day=0,
+                end_day=15,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=True,
+                sensitivities=["waterlogging_wilt", "phytophthora_blight"],
+            ),
+            GrowthStageItem(
+                stage_id="vegetative",
+                name="Vegetative Growth",
+                name_mr="शाकीय वाढ",
+                start_day=16,
+                end_day=75,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=False,
+                sensitivities=["excess_waterlogging"],
+            ),
+            GrowthStageItem(
+                stage_id="flowering",
+                name="Branching & Flowering",
+                name_mr="फुलोरा",
+                start_day=76,
+                end_day=115,
+                water_requirement_tier="critical",
+                is_critical_moisture_stage=True,
+                sensitivities=["terminal_drought", "pod_borer (helicoverpa)", "flower_drop"],
+            ),
+            GrowthStageItem(
+                stage_id="pod_development",
+                name="Pod Formation & Grain Filling",
+                name_mr="शेंगा धरणे व दाणे भरणे",
+                start_day=116,
+                end_day=145,
+                water_requirement_tier="critical",
+                is_critical_moisture_stage=True,
+                sensitivities=["moisture_stress", "plume_moth"],
+            ),
+            GrowthStageItem(
+                stage_id="maturity",
+                name="Maturity & Harvest",
+                name_mr="काढणी",
+                start_day=146,
+                end_day=175,
+                water_requirement_tier="low",
+                is_critical_moisture_stage=False,
+                sensitivities=["pod_fly", "delayed_harvest"],
+            ),
+        ],
+        recommended_varieties=["BSMR-736", "BSMR-853", "BDN-711", "Phule Rajeshwari", "ICPL-87119 (Asha)"],
+        intercropping_options=["Soybean + Tur (4:2)", "Pearl Millet + Tur (2:1)", "Cotton + Tur (6:1)"],
+        source_citation="VNMKV Parbhani Pulse Recommendations; MPKV Rahuri Pulse Package.",
+        publisher="Vasantrao Naik Marathwada Krishi Vidyapeeth, Parbhani",
+        version="v2024.1",
+    ),
+
+    # =========================================================================
+    # 4. PEARL MILLET / BAJRA (बाजरी) - Kharif Drought-Hardy Cereal
+    # =========================================================================
+    "pearl_millet": CropRequirement(
+        crop_id="pearl_millet",
+        name="Pearl Millet (Bajra)",
+        name_mr="बाजरी",
+        scientific_name="Pennisetum glaucum",
+        season=CropSeason.KHARIF,
+        crop_category="cereal",
+        duration_days_min=75,
+        duration_days_max=85,
+        agroclimatic_zones=[
+            "Scarcity Zone",
+            "Western Maharashtra Rain Shadow",
+            "Khandesh",
+            "Marathwada Dry Tracts",
+        ],
+        sowing_window=SowingWindowDefinition(
+            optimal_start_month=6,
+            optimal_start_day=15,
+            optimal_end_month=7,
+            optimal_end_day=15,
+            delayed_cutoff_month=7,
+            delayed_cutoff_day=30,
+            rationale=(
+                "Highly resilient drought-tolerant cereal. Ideal for light to medium undulating soils with low rainfall. "
+                "Can be sown up to end of July as a contingency crop when monsoon onset is delayed."
+            ),
+        ),
+        suitable_textures=[
+            SoilTextureClass.SANDY_CLAY_LOAM,
+            SoilTextureClass.SANDY_LOAM,
+            SoilTextureClass.LOAM,
+            SoilTextureClass.COARSE_SHALLOW,
+            SoilTextureClass.CLAY_LOAM,
+        ],
+        min_soil_ph=5.8,
+        max_soil_ph=8.5,
+        min_soil_depth_cm=25,
+        drainage_preference="well_drained",
+        min_seasonal_rainfall_mm=350.0,
+        max_seasonal_rainfall_mm=650.0,
+        sowing_soil_moisture_min_mm=45.0,
+        growth_stages=[
+            GrowthStageItem(
+                stage_id="sowing",
+                name="Sowing & Seedling",
+                name_mr="पेरणी व रोपावस्था",
+                start_day=0,
+                end_day=10,
+                water_requirement_tier="low",
+                is_critical_moisture_stage=True,
+                sensitivities=["soil_crust"],
+            ),
+            GrowthStageItem(
+                stage_id="vegetative",
+                name="Tillering & Stem Elongation",
+                name_mr="फुटवे फुटणे",
+                start_day=11,
+                end_day=30,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=False,
+                sensitivities=["shoot_fly"],
+            ),
+            GrowthStageItem(
+                stage_id="flowering",
+                name="Booting & Flowering",
+                name_mr="कणीस बाहेर पडणे व फुलोरा",
+                start_day=31,
+                end_day=55,
+                water_requirement_tier="critical",
+                is_critical_moisture_stage=True,
+                sensitivities=["drought_stress", "ergot", "downy_mildew"],
+            ),
+            GrowthStageItem(
+                stage_id="pod_development",
+                name="Grain Filling (Dough Stage)",
+                name_mr="दाणे भरणे",
+                start_day=56,
+                end_day=70,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=True,
+                sensitivities=["terminal_moisture_stress"],
+            ),
+            GrowthStageItem(
+                stage_id="maturity",
+                name="Maturity & Grain Drying",
+                name_mr="कणीस पक्वता व कापणी",
+                start_day=71,
+                end_day=85,
+                water_requirement_tier="low",
+                is_critical_moisture_stage=False,
+                sensitivities=["bird_damage", "unseasonal_rain"],
+            ),
+        ],
+        recommended_varieties=["Shraddha (RHRBH-8609)", "Saburi (RHRBH-8924)", "Shanti", "Phule Aadishakti", "HHB-67"],
+        intercropping_options=["Bajra + Pigeonpea (2:1)", "Bajra + Moth Bean (2:1)"],
+        source_citation="MPKV Rahuri Millets Production Guidelines; ICAR-AICRP on Pearl Millet.",
+        publisher="Mahatma Phule Krishi Vidyapeeth, Rahuri",
+        version="v2024.1",
+    ),
+
+    # =========================================================================
+    # 5. KHARIF SORGHUM / JOWAR (ज्वारी) - Kharif Cereal
+    # =========================================================================
+    "sorghum": CropRequirement(
+        crop_id="sorghum",
+        name="Sorghum (Jowar)",
+        name_mr="ज्वारी",
+        scientific_name="Sorghum bicolor",
+        season=CropSeason.KHARIF,
+        crop_category="cereal",
+        duration_days_min=100,
+        duration_days_max=115,
+        agroclimatic_zones=[
+            "Scarcity Zone",
+            "Central Maharashtra Plateau",
+            "Khandesh",
+            "Marathwada",
+        ],
+        sowing_window=SowingWindowDefinition(
+            optimal_start_month=6,
+            optimal_start_day=20,
+            optimal_end_month=7,
+            optimal_end_day=10,
+            delayed_cutoff_month=7,
+            delayed_cutoff_day=20,
+            rationale=(
+                "Requires minimum 60 mm rainfall for uniform germination. Sowing must be completed within first fortnight "
+                "of July to avoid severe shoot fly damage."
+            ),
+        ),
+        suitable_textures=[
+            SoilTextureClass.BLACK_COTTON_VERTISOL,
+            SoilTextureClass.CLAY,
+            SoilTextureClass.CLAY_LOAM,
+            SoilTextureClass.LOAM,
+        ],
+        min_soil_ph=6.0,
+        max_soil_ph=8.5,
+        min_soil_depth_cm=45,
+        drainage_preference="moderately_drained",
+        min_seasonal_rainfall_mm=450.0,
+        max_seasonal_rainfall_mm=850.0,
+        sowing_soil_moisture_min_mm=60.0,
+        growth_stages=[
+            GrowthStageItem(
+                stage_id="sowing",
+                name="Sowing & Emergence",
+                name_mr="पेरणी व उगवण",
+                start_day=0,
+                end_day=10,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=True,
+                sensitivities=["shoot_fly"],
+            ),
+            GrowthStageItem(
+                stage_id="vegetative",
+                name="Vegetative & Knee-High",
+                name_mr="वाढ व पोंग्या अवस्था",
+                start_day=11,
+                end_day=40,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=False,
+                sensitivities=["fall_armyworm", "stem_borer"],
+            ),
+            GrowthStageItem(
+                stage_id="flowering",
+                name="Booting & Flowering",
+                name_mr="पोटरी व फुलोरा अवस्था",
+                start_day=41,
+                end_day=70,
+                water_requirement_tier="critical",
+                is_critical_moisture_stage=True,
+                sensitivities=["drought_stress", "midge_fly"],
+            ),
+            GrowthStageItem(
+                stage_id="pod_development",
+                name="Grain Filling (Milky/Dough)",
+                name_mr="दाणे भरणे (दुधाळ अवस्था)",
+                start_day=71,
+                end_day=90,
+                water_requirement_tier="critical",
+                is_critical_moisture_stage=True,
+                sensitivities=["moisture_stress", "grain_mold"],
+            ),
+            GrowthStageItem(
+                stage_id="maturity",
+                name="Maturity & Harvest",
+                name_mr="काढणी",
+                start_day=91,
+                end_day=115,
+                water_requirement_tier="low",
+                is_critical_moisture_stage=False,
+                sensitivities=["grain_discoloration_due_to_rain"],
+            ),
+        ],
+        recommended_varieties=["CSH-9", "CSH-14", "CSH-25", "Phule Yashoda", "PVK-801"],
+        intercropping_options=["Jowar + Pigeonpea (2:1)", "Jowar + Soybean (2:2)"],
+        source_citation="ICAR-IIMR Hyderabad Sorghum Package; MPKV Rahuri Cereals Tech Guide.",
+        publisher="Mahatma Phule Krishi Vidyapeeth, Rahuri",
+        version="v2024.1",
+    ),
+
+    # =========================================================================
+    # 6. ONION (कांदा) - Kharif & Late Kharif Vegetable Cash Crop
+    # =========================================================================
+    "onion": CropRequirement(
+        crop_id="onion",
+        name="Onion (Kharif / Late Kharif)",
+        name_mr="कांदा",
+        scientific_name="Allium cepa",
+        season=CropSeason.KHARIF,
+        crop_category="vegetable",
+        duration_days_min=110,
+        duration_days_max=130,
+        agroclimatic_zones=[
+            "Western Maharashtra Plain (Nashik, Pune, Satara, Ahmednagar)",
+            "Central Maharashtra Plateau",
+        ],
+        sowing_window=SowingWindowDefinition(
+            optimal_start_month=7,
+            optimal_start_day=15,
+            optimal_end_month=8,
+            optimal_end_day=15,
+            delayed_cutoff_month=8,
+            delayed_cutoff_day=31,
+            rationale=(
+                "Transplanting of 6-7 week old seedlings from nursery. Requires well-drained, friable loam. "
+                "Extremely sensitive to standing water (leads to basal rot and purple blotch)."
+            ),
+        ),
+        suitable_textures=[
+            SoilTextureClass.CLAY_LOAM,
+            SoilTextureClass.LOAM,
+            SoilTextureClass.SANDY_CLAY_LOAM,
+            SoilTextureClass.SILT_LOAM,
+        ],
+        min_soil_ph=6.5,
+        max_soil_ph=7.8,
+        min_soil_depth_cm=30,
+        drainage_preference="well_drained",
+        min_seasonal_rainfall_mm=500.0,
+        max_seasonal_rainfall_mm=800.0,
+        sowing_soil_moisture_min_mm=60.0,
+        growth_stages=[
+            GrowthStageItem(
+                stage_id="sowing",
+                name="Transplanting & Establishment",
+                name_mr="पुनर्लागवड व स्थिरावणे",
+                start_day=0,
+                end_day=15,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=True,
+                sensitivities=["transplant_shock", "damping_off"],
+            ),
+            GrowthStageItem(
+                stage_id="vegetative",
+                name="Vegetative Leaf Growth",
+                name_mr="पातीची वाढ",
+                start_day=16,
+                end_day=45,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=False,
+                sensitivities=["thrips", "purple_blotch"],
+            ),
+            GrowthStageItem(
+                stage_id="pod_development",
+                name="Bulb Initiation & Development",
+                name_mr="कांदा पोसणे (कंद विकास)",
+                start_day=46,
+                end_day=90,
+                water_requirement_tier="critical",
+                is_critical_moisture_stage=True,
+                sensitivities=["waterlogging", "moisture_stress_split_bulbs", "colletotrichum_twister"],
+            ),
+            GrowthStageItem(
+                stage_id="maturity",
+                name="Bulb Maturity & Neck Fall",
+                name_mr="कांदा पक्वता व मान मोडणे",
+                start_day=91,
+                end_day=120,
+                water_requirement_tier="low",
+                is_critical_moisture_stage=False,
+                sensitivities=["rain_at_harvest", "rot"],
+            ),
+        ],
+        recommended_varieties=["Baswant-780", "Phule Samarth", "Bhima Super", "Bhima Red", "Bhima Dark Red"],
+        intercropping_options=["Monocrop with border barrier crop (Maize for thrips management)"],
+        source_citation="ICAR-DOGR Rajgurunagar Onion Tech Bulletin; MPKV Rahuri Vegetable Production Guide.",
+        publisher="ICAR-Directorate of Onion and Garlic Research & MPKV",
+        version="v2024.1",
+    ),
+
+    # =========================================================================
+    # 7. CHICKPEA / GRAM (हरभरा) - Rabi Pulse
+    # =========================================================================
+    "chickpea": CropRequirement(
+        crop_id="chickpea",
+        name="Chickpea (Gram / Harbara)",
+        name_mr="हरभरा",
+        scientific_name="Cicer arietinum",
+        season=CropSeason.RABI,
+        crop_category="pulse",
+        duration_days_min=95,
+        duration_days_max=110,
+        agroclimatic_zones=[
+            "Scarcity Zone (Solapur, Ahmednagar, Pune)",
+            "Central Maharashtra Plateau (Marathwada)",
+            "Khandesh & Vidarbha",
+        ],
+        sowing_window=SowingWindowDefinition(
+            optimal_start_month=10,
+            optimal_start_day=1,
+            optimal_end_month=11,
+            optimal_end_day=10,
+            delayed_cutoff_month=11,
+            delayed_cutoff_day=25,
+            rationale=(
+                "Requires receding monsoon soil moisture in deep Vertisols (residual moisture). "
+                "Optimal temperature for sowing: 20-25°C. Sowing in high heat (>30°C in early Oct) increases collar rot."
+            ),
+        ),
+        suitable_textures=[
+            SoilTextureClass.BLACK_COTTON_VERTISOL,
+            SoilTextureClass.CLAY,
+            SoilTextureClass.CLAY_LOAM,
+        ],
+        min_soil_ph=6.5,
+        max_soil_ph=8.4,
+        min_soil_depth_cm=45,
+        drainage_preference="well_drained",
+        min_seasonal_rainfall_mm=250.0,
+        max_seasonal_rainfall_mm=450.0,
+        sowing_soil_moisture_min_mm=50.0,
+        growth_stages=[
+            GrowthStageItem(
+                stage_id="sowing",
+                name="Sowing & Emergence",
+                name_mr="पेरणी व उगवण",
+                start_day=0,
+                end_day=12,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=True,
+                sensitivities=["collar_rot", "wilting"],
+            ),
+            GrowthStageItem(
+                stage_id="vegetative",
+                name="Branching & Vegetative Growth",
+                name_mr="फांद्या फुटणे",
+                start_day=13,
+                end_day=40,
+                water_requirement_tier="low",
+                is_critical_moisture_stage=False,
+                sensitivities=["helicoverpa_leaf_eating"],
+            ),
+            GrowthStageItem(
+                stage_id="flowering",
+                name="Pre-flowering & Flowering",
+                name_mr="फुलधारणा",
+                start_day=41,
+                end_day=65,
+                water_requirement_tier="critical",
+                is_critical_moisture_stage=True,
+                sensitivities=["terminal_drought", "cloudy_weather", "pod_borer"],
+            ),
+            GrowthStageItem(
+                stage_id="pod_development",
+                name="Pod Development & Grain Filling",
+                name_mr="घाटे भरणे",
+                start_day=66,
+                end_day=85,
+                water_requirement_tier="critical",
+                is_critical_moisture_stage=True,
+                sensitivities=["moisture_stress", "heat_stress"],
+            ),
+            GrowthStageItem(
+                stage_id="maturity",
+                name="Maturity & Drying",
+                name_mr="पक्वता व काढणी",
+                start_day=86,
+                end_day=105,
+                water_requirement_tier="low",
+                is_critical_moisture_stage=False,
+                sensitivities=["shattering"],
+            ),
+        ],
+        recommended_varieties=["Vijay", "Digvijay", "Vishal", "Phule Vikram", "Jaki 9218"],
+        intercropping_options=["Rabi Sorghum + Gram (3:1 or 2:1)", "Safflower + Gram (1:2)"],
+        source_citation="MPKV Rahuri Pulses Research Station; ICAR-IIPR Kanpur.",
+        publisher="Mahatma Phule Krishi Vidyapeeth, Rahuri",
+        version="v2024.1",
+    ),
+
+    # =========================================================================
+    # 8. SUGARCANE (ऊस) - Perennial Commercial Crop
+    # =========================================================================
+    "sugarcane": CropRequirement(
+        crop_id="sugarcane",
+        name="Sugarcane",
+        name_mr="ऊस",
+        scientific_name="Saccharum officinarum",
+        season=CropSeason.PERENNIAL,
+        crop_category="commercial",
+        duration_days_min=330,
+        duration_days_max=420,
+        agroclimatic_zones=[
+            "Western Maharashtra Canal Command (Pune, Kolhapur, Satara, Ahmednagar)",
+            "Assured Irrigation Belts",
+        ],
+        sowing_window=SowingWindowDefinition(
+            optimal_start_month=7,
+            optimal_start_day=15,
+            optimal_end_month=8,
+            optimal_end_day=15,
+            delayed_cutoff_month=10,
+            delayed_cutoff_day=30,
+            rationale=(
+                "Adsali planting (July-August) yields highest sucrose in Western Maharashtra. "
+                "Requires assured perennial irrigation; strictly unsuitable under rainfed conditions."
+            ),
+        ),
+        suitable_textures=[
+            SoilTextureClass.BLACK_COTTON_VERTISOL,
+            SoilTextureClass.CLAY,
+            SoilTextureClass.CLAY_LOAM,
+        ],
+        min_soil_ph=6.5,
+        max_soil_ph=8.2,
+        min_soil_depth_cm=90,
+        drainage_preference="well_drained",
+        min_seasonal_rainfall_mm=1200.0,
+        max_seasonal_rainfall_mm=2500.0,
+        sowing_soil_moisture_min_mm=100.0,
+        growth_stages=[
+            GrowthStageItem(
+                stage_id="sowing",
+                name="Planting & Germination",
+                name_mr="लागवड व उगवण",
+                start_day=0,
+                end_day=35,
+                water_requirement_tier="high",
+                is_critical_moisture_stage=True,
+                sensitivities=["shoot_borer", "soil_crusting"],
+            ),
+            GrowthStageItem(
+                stage_id="vegetative",
+                name="Tillering & Formative Phase",
+                name_mr="फुटवे फुटणे व कांड्या सुटणे",
+                start_day=36,
+                end_day=120,
+                water_requirement_tier="critical",
+                is_critical_moisture_stage=True,
+                sensitivities=["early_shoot_borer", "moisture_stress"],
+            ),
+            GrowthStageItem(
+                stage_id="pod_development",
+                name="Grand Growth & Cane Elongation",
+                name_mr="जोमदार वाढ",
+                start_day=121,
+                end_day=270,
+                water_requirement_tier="critical",
+                is_critical_moisture_stage=True,
+                sensitivities=["severe_drought", "pyrilla", "scale_insect"],
+            ),
+            GrowthStageItem(
+                stage_id="maturity",
+                name="Ripening & Sucrose Accumulation",
+                name_mr="पक्वता व साखर भरणे",
+                start_day=271,
+                end_day=360,
+                water_requirement_tier="moderate",
+                is_critical_moisture_stage=False,
+                sensitivities=["frost", "waterlogging_near_harvest"],
+            ),
+        ],
+        recommended_varieties=["Co-86032 (Nira)", "CoM-0265 (Phule 265)", "MS-10001", "VSI-434"],
+        intercropping_options=["Soybean / Potato / Onion in furrow during early 60 days"],
+        source_citation="Vasantdada Sugar Institute (VSI) Pune; MPKV Sugarcane Research Station.",
+        publisher="Vasantdada Sugar Institute & MPKV Rahuri",
+        version="v2024.1",
+    ),
+}
+
+
+def get_crop_requirement(crop_id: str) -> Optional[CropRequirement]:
+    """Retrieve verified crop requirements specification."""
+    return RAW_CROPS.get(crop_id.strip().lower())
+
+
+def list_supported_crops(season: Optional[CropSeason] = None) -> List[CropRequirement]:
+    """List all supported crops, optionally filtered by season."""
+    if not season:
+        return list(RAW_CROPS.values())
+    return [c for c in RAW_CROPS.values() if c.season == season or c.season == CropSeason.PERENNIAL]

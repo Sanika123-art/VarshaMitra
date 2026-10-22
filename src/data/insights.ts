@@ -1,5 +1,9 @@
 import type { HistoricalTrendPoint } from "@/types";
 
+/**
+ * Simulated historical series for the prototype. These are NOT official
+ * observations — see MOCK_DATA.md. The period is exposed so the UI can state it.
+ */
 export const historicalTrend: HistoricalTrendPoint[] = [
   { year: 2016, rainfallAnomalyPct: 8, drySpellDays: 11 },
   { year: 2017, rainfallAnomalyPct: -6, drySpellDays: 18 },
@@ -13,6 +17,8 @@ export const historicalTrend: HistoricalTrendPoint[] = [
   { year: 2025, rainfallAnomalyPct: 6, drySpellDays: 14 },
 ];
 
+export const historicalPeriod = { from: 2016, to: 2025 };
+
 export const drySpellFrequencyByDistrict = [
   { districtId: "solapur", districtName: "Solapur", avgDrySpellDays: 24 },
   { districtId: "ahilyanagar", districtName: "Ahilyanagar", avgDrySpellDays: 21 },
@@ -23,9 +29,10 @@ export const drySpellFrequencyByDistrict = [
   { districtId: "kolhapur", districtName: "Kolhapur", avgDrySpellDays: 8 },
 ];
 
+/** Crop risk patterns. Text is referenced by i18n key so it renders in English and Marathi. */
 export const cropRiskPatterns = [
-  { blockName: "Baramati", cropKey: "crops.soybean", pattern: "Recurrent dry-spell stress at sowing" },
-  { blockName: "Barshi", cropKey: "crops.jowar", pattern: "Below-average onset probability, 4 of last 6 seasons" },
-  { blockName: "Panhala", cropKey: "crops.sugarcane", pattern: "Waterlogging risk during monsoon peak" },
-  { blockName: "Phaltan", cropKey: "crops.onion", pattern: "Moisture stress during bulb development" },
+  { blockId: "baramati", cropKey: "crops.soybean", patternKey: "insights.patterns.baramatiSoybean" },
+  { blockId: "barshi", cropKey: "crops.jowar", patternKey: "insights.patterns.barshiJowar" },
+  { blockId: "panhala", cropKey: "crops.sugarcane", patternKey: "insights.patterns.panhalaSugarcane" },
+  { blockId: "phaltan", cropKey: "crops.onion", patternKey: "insights.patterns.phaltanOnion" },
 ];

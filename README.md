@@ -35,23 +35,27 @@ frontend + local mock data.
 
 - **Next.js 16** (App Router) + **TypeScript**
 - **Tailwind CSS v4** for styling
-- **react-leaflet / Leaflet** for the risk map
+- **MapLibre GL** for the client-side risk map
 - **Recharts** for rainfall, temperature and historical charts
 - **lucide-react** for icons
+- **Python 3.12 + FastAPI** (under `backend/`) for climate indicators, soil intelligence, and agronomic advisory services
 
 ## Project structure
 
-See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full breakdown. In short:
+See [`ARCHITECTURE.md`](./ARCHITECTURE.md) and [`backend/README.md`](./backend/README.md) for full breakdowns. In short:
 
 ```
+backend/          Python FastAPI service (services, indicators, agronomy, tests)
 src/
   app/            Next.js routes (public, /farmer/*, /officer/*)
-  components/     Shared UI primitives (navbar, badges, cards)
-  features/       Feature-scoped components (risk-map, advisory helpers)
-  data/           Local mock datasets + deterministic "mock model" logic
+  components/     Shared UI primitives & modularized shell
+  features/       Feature-scoped components (risk-map, advisory helpers, charts)
+  data/           Local mock datasets + deterministic fallback logic
   i18n/           English + Marathi dictionaries and language context
   hooks/          App-wide client state (role, location, crop)
+  lib/api/        Typed API client connecting frontend to FastAPI backend
   types/          Shared TypeScript types
+tests/            Frontend API client & live integration test suites
 ```
 
 ## Language support
@@ -70,15 +74,16 @@ walkthrough.
 
 | File | Contents |
 |---|---|
+| [backend/README.md](./backend/README.md) | FastAPI backend service architecture, endpoints & test guide |
 | [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) | Problem, users, product philosophy |
 | [FEATURES.md](./FEATURES.md) | Feature-by-feature breakdown |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System + folder architecture |
-| [DATA_SOURCES.md](./DATA_SOURCES.md) | Real data sources for the future system |
-| [AI_ML_PLAN.md](./AI_ML_PLAN.md) | Future prediction pipeline |
-| [UI_UX_GUIDELINES.md](./UI_UX_GUIDELINES.md) | Design system and i18n approach |
-| [MOCK_DATA.md](./MOCK_DATA.md) | How the prototype's data is generated |
-| [FUTURE_BACKEND.md](./FUTURE_BACKEND.md) | Planned backend + API shape |
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | Deploying to Vercel |
+| [DATA_SOURCES.md](./DATA_SOURCES.md) | Real data sources & evaluated candidate inventory |
+| [AI_ML_PLAN.md](./AI_ML_PLAN.md) | Future ML prediction pipeline & contracts |
+| [UI_UX_GUIDELINES.md](./UI_UX_GUIDELINES.md) | Design system, image credits, and i18n approach |
+| [MOCK_DATA.md](./MOCK_DATA.md) | How fallback data is structured |
+| [FUTURE_BACKEND.md](./FUTURE_BACKEND.md) | Historical prototype backend proposal |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Frontend deployment reference (Phase 7 postponed) |
 | [DEMO_FLOW.md](./DEMO_FLOW.md) | Judge demo script |
 
 ## Honesty by design

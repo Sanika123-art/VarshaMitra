@@ -24,6 +24,31 @@ export function highRiskLocations() {
     }));
 }
 
+export interface DistrictRiskSummary {
+  districtId: string;
+  name: string;
+  nameMr: string;
+  critical: number;
+  high: number;
+  moderate: number;
+  low: number;
+  total: number;
+}
+
+/** Per-district block counts by risk class — drives the officer district comparison chart. */
+export function districtRiskSummaries(): DistrictRiskSummary[] {
+  return districts.map((d) => ({
+    districtId: d.id,
+    name: d.name,
+    nameMr: d.nameMr,
+    critical: d.blocks.filter((b) => b.risk === "critical").length,
+    high: d.blocks.filter((b) => b.risk === "high").length,
+    moderate: d.blocks.filter((b) => b.risk === "moderate").length,
+    low: d.blocks.filter((b) => b.risk === "low").length,
+    total: d.blocks.length,
+  }));
+}
+
 export const cropExposure = [
   { cropKey: "crops.soybean", exposedBlocks: 9, riskWeighted: "high" as RiskLevel },
   { cropKey: "crops.cotton", exposedBlocks: 7, riskWeighted: "moderate" as RiskLevel },

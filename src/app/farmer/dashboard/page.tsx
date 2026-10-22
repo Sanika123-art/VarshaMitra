@@ -1,317 +1,380 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
 import {
   CloudRain,
-  Droplets,
   Sprout,
-  MapPinned,
-  AlertTriangle,
   ChevronDown,
   ArrowRight,
-  Eye,
   Shield,
-  Thermometer,
-  Wind,
+  Layers,
+  Sparkles,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { useTranslation } from "@/i18n/LanguageContext";
 import { useAppState } from "@/hooks/useAppState";
-import { getBlock } from "@/data/locations";
+import { getBlock, getDistrict } from "@/data/locations";
 import { getForecast } from "@/data/climate";
 import { getCrop } from "@/data/crops";
 import { deriveAdvisory } from "@/data/advisories";
 import { alertsForBlock } from "@/data/officer";
+import { cropPhotoFor } from "@/data/media";
 import RiskBadge from "@/components/RiskBadge";
-import { riskLabelKey } from "@/lib/utils";
-import { PrototypeTag, ForecastTimeline, ClimateSignalCard, AlertCard } from "@/components/ui";
-import { cn } from "@/lib/utils";
-import type { RainfallPoint } from "@/types";
+import { pickName } from "@/lib/utils";
+import type { RiskLevel } from "@/types";
+import {
+  api,
+  type RiskAssessmentResponse,
+  type ClimateIndicatorsResponse,
+  type ForecastSeries,
+  type CropAdvisoryResponse,
+} from "@/lib/api";
+import {
+  PageHeader,
+  MetaChip,
+  Card,
+  CardHeader,
+  ButtonLink,
+  DataStatus,
+  ProbabilityMeter,
+  AlertListItem,
+  DriverList,
+  Photo,
+} from "@/components/ui";
+import { RainfallBars } from "@/features/charts/RainfallCharts";
 
 export default function FarmerDashboard() {
   const { t, language } = useTranslation();
   const { location, cropId, stageId, hydrated } = useAppState();
   const [whyOpen, setWhyOpen] = useState(false);
 
+  // Live API states
+  const [liveRisk, setLiveRisk] = useState<RiskAssessmentResponse | null>(null);
+  const [liveIndicators, setLiveIndicators] = useState<ClimateIndicatorsResponse | null>(null);
+  const [liveForecast, setLiveForecast] = useState<ForecastSeries | null>(null);
+  const [liveAdvisory, setLiveAdvisory] = useState<CropAdvisoryResponse | null>(null);
+  const [apiLoading, setApiLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hydrated || !location.blockId) return;
+
+    let active = true;
+    setApiLoading(true);
+    setApiError(null);
+
+    Promise.allSettled([
+      api.getClimateRisk(location.blockId),
+      api.getClimateIndicators(location.blockId, 14),
+      api.getForecast(location.blockId, 14),
+      api.getCropAdvisory(location.blockId, cropId, stageId, language),
+    ]).then(([riskRes, indRes, fcRes, advRes]) => {
+      if (!active) return;
+
+      if (riskRes.status === "fulfilled") setLiveRisk(riskRes.value);
+      if (indRes.status === "fulfilled") setLiveIndicators(indRes.value);
+      if (fcRes.status === "fulfilled") setLiveForecast(fcRes.value);
+      if (advRes.status === "fulfilled") setLiveAdvisory(advRes.value);
+
+      if (
+        riskRes.status === "rejected" &&
+        indRes.status === "rejected" &&
+        fcRes.status === "rejected" &&
+        advRes.status === "rejected"
+      ) {
+        setApiError("Backend API unavailable. Showing offline demo estimates.");
+      }
+      setApiLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [hydrated, location.blockId, cropId, stageId, language]);
+
   if (!hydrated) return null;
 
   const block = getBlock(location.blockId);
   if (!block) return null;
-  const forecast = getForecast(block.id, 14);
+  const district = getDistrict(block.districtId);
+  const fallbackFc = getForecast(block.id, 14);
   const crop = getCrop(cropId);
   const stage = crop?.stages.find((s) => s.id === stageId);
-  const advisory = deriveAdvisory(block.id, cropId, stageId);
+  const fallbackAdv = deriveAdvisory(block.id, cropId, stageId);
   const alerts = alertsForBlock(block.id);
+  const photo = cropPhotoFor(cropId, stageId);
 
-  const headline = t(
-    `advisoryTemplates.${advisory.concern}.${advisory.isSowing ? "headlineSowing" : "headlineOther"}`,
-    { crop: t(advisory.cropNameKey), stage: t(advisory.stageNameKey) }
-  );
-  const reason = t(
-    `advisoryTemplates.${advisory.concern}.${advisory.isSowing ? "reasonSowing" : "reasonOther"}`,
-    { crop: t(advisory.cropNameKey), stage: t(advisory.stageNameKey) }
-  );
-  const water = t(`advisoryTemplates.${advisory.concern}.water`);
+  const blockName = pickName(block, language);
+  const districtName = district ? pickName(district, language) : "";
+  const cropName = crop ? t(crop.nameKey) : cropId;
+  const stageName = stage ? t(stage.nameKey) : stageId;
 
-  // Build timeline data from forecast
-  const timelineData = forecast.rainfallTrend.map((point: RainfallPoint) => ({
-    day: point.day,
-    rain: point.expectedMm,
-    type: (point.expectedMm > 15
-      ? "heavy"
-      : point.expectedMm < 3
-        ? "dry"
-        : "normal") as "normal" | "dry" | "heavy" | "moderate",
-  }));
+  // Use live advisory if available
+  const isMr = language === "mr";
+  const headline = liveAdvisory
+    ? isMr ? liveAdvisory.primary_advisory.primary_action_mr : liveAdvisory.primary_advisory.primary_action_en
+    : t(
+        `advisoryTemplates.${fallbackAdv.concern}.${fallbackAdv.isSowing ? "headlineSowing" : "headlineOther"}`,
+        { crop: cropName, stage: stageName }
+      );
+
+  const reason = liveAdvisory
+    ? isMr ? liveAdvisory.primary_advisory.plain_language_reason_mr : liveAdvisory.primary_advisory.plain_language_reason_en
+    : t(
+        `advisoryTemplates.${fallbackAdv.concern}.${fallbackAdv.isSowing ? "reasonSowing" : "reasonOther"}`,
+        { crop: cropName, stage: stageName }
+      );
+
+  const water = liveAdvisory
+    ? (isMr ? liveAdvisory.primary_advisory.primary_action_mr : liveAdvisory.primary_advisory.primary_action_en)
+    : t(`advisoryTemplates.${fallbackAdv.concern}.water`);
+
+  const currentRisk: RiskLevel =
+    liveRisk?.overall_risk && liveRisk.overall_risk !== "insufficient_data"
+      ? liveRisk.overall_risk
+      : block.risk;
+
+  // Format risk drivers from live API or fallback
+  const driverItems = liveRisk && liveRisk.risk_drivers.length > 0
+    ? liveRisk.risk_drivers.map((d, idx) => ({
+        key: d.driver_key || d.code || `driver_${idx}`,
+        primary: idx === 0,
+        text: `${d.name || d.plain_language_summary || "Driver"}: ${d.evidence}`,
+      }))
+    : block.riskDrivers.map((driver, idx) => ({
+        key: driver,
+        primary: idx === 0,
+        text: t(`riskDrivers.${driver}`),
+      }));
+
+  // Build chart points from live forecast or fallback
+  const rainfallPoints = liveForecast && liveForecast.forecast.length > 0
+    ? liveForecast.forecast.map((f, idx) => ({
+        day: idx + 1,
+        expectedMm: f.precipitation_sum_mm,
+        lowerMm: Math.max(0, Number((f.precipitation_sum_mm * 0.8).toFixed(1))),
+        upperMm: Number((f.precipitation_sum_mm * 1.25).toFixed(1)),
+      }))
+    : fallbackFc.rainfallTrend;
+
+  // Key meters: onset probability, dry spell days, heavy rain days
+  const onsetProb = liveIndicators?.monsoon_onset?.onset_detected ? 100 : fallbackFc.monsoonOnsetProbability;
+  const drySpellStreak = liveIndicators?.dry_spell?.current_consecutive_dry_days ?? 0;
+  const drySpellProb = liveIndicators
+    ? (liveIndicators.dry_spell.severity === "critical" ? 95 : liveIndicators.dry_spell.severity === "significant" ? 75 : 30)
+    : fallbackFc.drySpellProbability;
+  const heavyRainProb = liveIndicators?.heavy_rain?.has_heavy_rain_event ? 85 : fallbackFc.heavyRainProbability;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
-      <PrototypeTag />
-
-      {/* ── Greeting ─────────────────────────────────────── */}
-      <h1 className="mt-4 font-display text-4xl text-[var(--color-ink)] sm:text-5xl">
-        {t("farmer.goodMorning")}
-      </h1>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-forest)]/8 px-3 py-1 text-sm font-medium text-[var(--color-forest-dark)]">
-          <MapPinned size={13} />
-          {language === "mr" ? block.nameMr : block.name}, {location.districtName}
-        </span>
-        {crop && stage && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-forest)]/8 px-3 py-1 text-sm font-medium text-[var(--color-forest-dark)]">
-            <Sprout size={13} />
-            {t(crop.nameKey)} · {t(stage.nameKey)}
-          </span>
+    <div className="space-y-6">
+      {/* ── Page Header ────────────────────────────────────── */}
+      <PageHeader
+        eyebrow={t("farmerDashboard.eyebrow")}
+        title={t("farmerDashboard.title", { location: blockName })}
+        description={t("farmerDashboard.subtitle")}
+        actions={
+          <div className="flex gap-2">
+            <ButtonLink href="/farmer/crop" variant="secondary" size="sm">
+              <Sprout size={15} aria-hidden />
+              {t("nav.crop")}
+            </ButtonLink>
+            <ButtonLink href="/farmer/risk-map" variant="primary" size="sm">
+              <Layers size={15} aria-hidden />
+              {t("nav.riskMap")}
+            </ButtonLink>
+          </div>
+        }
+      >
+        <MetaChip>{districtName}</MetaChip>
+        <MetaChip>
+          <span className="font-semibold text-ink">{cropName}</span> ({stageName})
+        </MetaChip>
+        {apiLoading ? (
+          <div className="ml-auto flex items-center gap-1.5 text-xs text-ink-muted">
+            <RefreshCw size={13} className="animate-spin text-forest" />
+            <span>Updating...</span>
+          </div>
+        ) : liveRisk ? (
+          <div className="ml-auto flex items-center gap-2">
+            <span className="hidden sm:inline-flex items-center rounded-full bg-forest-soft px-2 py-0.5 text-[10px] font-semibold text-forest">
+              Live FastAPI
+            </span>
+            <RiskBadge risk={currentRisk} size="md" withPrefix />
+          </div>
+        ) : (
+          <div className="ml-auto flex items-center gap-2">
+            <RiskBadge risk={currentRisk} size="md" withPrefix />
+          </div>
         )}
-      </div>
-      <p className="mt-2 text-sm text-[var(--color-ink)]/55">
-        {t("farmer.outlookFor", { days: 14 })}
-      </p>
+      </PageHeader>
 
-      {/* ── TODAY'S DECISION — The Hero ───────────────────── */}
-      <div className="mt-8 rounded-3xl border border-[var(--color-forest)]/20 bg-gradient-to-br from-[var(--color-forest-light)] to-[var(--color-paper-raised)] p-6 shadow-[var(--shadow-md)] sm:p-8">
-        <div className="flex items-center gap-2 text-[var(--color-forest)]">
-          <Shield size={18} />
-          <span className="text-xs font-bold uppercase tracking-wider">
-            {t("farmer.todaysDecision")}
-          </span>
-        </div>
+      {/* ── Data Provenance Note ──────────────────────────── */}
+      <DataStatus
+        kind="assessment"
+        date={liveRisk ? liveRisk.assessment_date : fallbackFc.updatedAt}
+      />
 
-        <h2 className="mt-4 font-display text-2xl leading-snug text-[var(--color-forest-dark)] sm:text-3xl">
-          {headline}
-        </h2>
-
-        <button
-          onClick={() => setWhyOpen((v) => !v)}
-          className="mt-4 flex items-center gap-1.5 text-sm font-semibold text-[var(--color-forest)] transition-colors hover:text-[var(--color-forest-dark)]"
-        >
-          <ChevronDown
-            size={16}
-            className={cn("transition-transform duration-200", whyOpen && "rotate-180")}
-          />
-          {t("farmer.whyRecommendation")}
-        </button>
-
-        <div
-          className={cn(
-            "overflow-hidden transition-all duration-300",
-            whyOpen ? "mt-3 max-h-40 opacity-100" : "max-h-0 opacity-0"
-          )}
-        >
-          <p className="max-w-2xl text-sm leading-relaxed text-[var(--color-ink)]/65">
-            {reason}
-          </p>
-        </div>
-
-        <div className="mt-5 rounded-2xl bg-[var(--color-sky)]/8 border border-[var(--color-sky)]/15 px-4 py-3 text-sm text-[var(--color-sky)]">
-          <span className="font-semibold">{t("farmer.waterAction")}:</span> {water}
-        </div>
-
-        <Link
-          href="/farmer/advisory"
-          className="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--color-forest)] px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition-all hover:bg-[var(--color-forest-dark)] hover:shadow-[var(--shadow-md)]"
-        >
-          {t("farmer.viewAdvisory")}
-          <ArrowRight size={14} />
-        </Link>
-      </div>
-
-      {/* ── 14-Day Forecast Timeline ─────────────────────── */}
-      <div className="mt-6">
-        <ForecastTimeline
-          data={timelineData}
-          labels={{
-            title: t("farmer.forecastTimeline"),
-            rain: t("farmer.timelineRain"),
-            dry: t("farmer.timelineDry"),
-            heavy: t("farmer.timelineHeavy"),
-          }}
-        />
-      </div>
-
-      {/* ── Risk Overview ────────────────────────────────── */}
-      <div className="mt-6 rounded-3xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-6 shadow-[var(--shadow-sm)] sm:p-8">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-[var(--color-ink)]/65">
-            {t("farmer.overallRisk")}
-          </p>
-          <RiskBadge risk={block.risk} label={t(riskLabelKey[block.risk])} size="lg" />
-        </div>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <RiskFactor
-            icon={CloudRain}
-            label={t("farmer.monsoonCard")}
-            value={forecast.monsoonOnsetProbability}
-            unit="%"
-            color="var(--color-forest)"
-            detail={t("farmer.monsoonLikely")}
-          />
-          <RiskFactor
-            icon={Droplets}
-            label={t("climatePage.drySpellRisk")}
-            value={forecast.drySpellProbability}
-            unit="%"
-            color="var(--color-amber)"
-          />
-          <RiskFactor
-            icon={CloudRain}
-            label={t("climatePage.heavyRainRisk")}
-            value={forecast.heavyRainProbability}
-            unit="%"
-            color="var(--color-clay)"
-          />
-        </div>
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* ── Climate Signals ────────────────────────────── */}
-        <div className="rounded-3xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-6 shadow-[var(--shadow-sm)]">
-          <div className="flex items-center gap-2">
-            <Eye size={16} className="text-[var(--color-forest)]" />
-            <p className="text-sm font-semibold text-[var(--color-ink)]/70">
-              {t("farmer.whyForecast")}
-            </p>
-          </div>
-          <div className="mt-4 space-y-2">
-            {forecast.signals.map((s) => (
-              <ClimateSignalCard
-                key={s.id}
-                name={t(s.labelKey)}
-                value={s.value}
-                strength={s.value as "Primary" | "Contributing"}
-                explanation={t(`farmer.signalExplanation.${s.descriptionKey.split('.').pop()}`)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* ── Alerts ─────────────────────────────────────── */}
-        <div className="rounded-3xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-6 shadow-[var(--shadow-sm)]">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={16} className="text-[var(--color-clay)]" />
-            <p className="text-sm font-semibold text-[var(--color-ink)]/70">
-              {t("farmer.watchForTitle")}
-            </p>
-          </div>
-          {alerts.length === 0 ? (
-            <p className="mt-4 text-sm text-[var(--color-ink)]/50">{t("farmer.noAlerts")}</p>
-          ) : (
-            <div className="mt-4 space-y-2">
-              {alerts.map((a) => (
-                <AlertCard
-                  key={a.id}
-                  severity={a.severity}
-                  title={t(a.titleKey)}
-                  time={t("farmer.hoursAgo", { h: a.timeAgoHours })}
-                />
-              ))}
+      {/* ── BENTO GRID ─────────────────────────────────────── */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* 1. Primary Action & Advisory (Hero Bento Card - spans 8 cols) */}
+        <Card tone="default" className="lg:col-span-8 flex flex-col justify-between">
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-md bg-forest-soft text-forest">
+                  <Sparkles size={18} aria-hidden />
+                </span>
+                <div>
+                  <h2 className="font-serif text-lg font-semibold text-ink">
+                    {t("farmerDashboard.advisoryTitle")}
+                  </h2>
+                  <p className="text-xs text-ink-muted">
+                    {cropName} · {stageName}
+                  </p>
+                </div>
+              </div>
+              <RiskBadge risk={currentRisk} size="md" />
             </div>
+
+            <div className="mt-5 grid gap-5 sm:grid-cols-12">
+              {photo && (
+                <div className="sm:col-span-4">
+                  <div className="overflow-hidden rounded-lg border border-line">
+                    <Photo
+                      src={photo.src}
+                      alt={cropName}
+                      sizes="(max-width: 640px) 100vw, 250px"
+                      className="aspect-[4/3] w-full"
+                    />
+                    <div className="bg-paper-deep/60 p-2 text-[11px] text-ink-muted">
+                      {t("cropPhoto.contextNotice")}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className={photo ? "sm:col-span-8" : "sm:col-span-12"}>
+                <div className="rounded-lg border border-forest/30 bg-forest-soft/40 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-forest-dark">
+                    {t("advisory.recommendedAction")}
+                  </p>
+                  <p className="mt-1 font-serif text-lg font-bold leading-snug text-ink">
+                    {headline}
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+                    {water}
+                  </p>
+                </div>
+
+                {/* Explanation reveal */}
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setWhyOpen(!whyOpen)}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-forest hover:underline"
+                  >
+                    <span>{whyOpen ? t("common.hideWhy") : t("common.seeWhy")}</span>
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform ${whyOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {whyOpen && (
+                    <div className="mt-2 rounded-md border border-line bg-surface-raised p-3 text-xs leading-relaxed text-ink-muted">
+                      <p className="font-semibold text-ink">{t("advisory.agronomicBasis")}:</p>
+                      <p className="mt-1">{reason}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+            <span className="text-xs text-ink-muted">
+              {liveAdvisory ? `${liveAdvisory.primary_advisory.rule_id} · ${liveAdvisory.primary_advisory.provenance}` : t("advisory.ruleNotice")}
+            </span>
+            <ButtonLink href="/farmer/advisory" variant="primary" size="sm">
+              {t("advisory.viewFullAdvisory")}
+              <ArrowRight size={14} aria-hidden />
+            </ButtonLink>
+          </div>
+        </Card>
+
+        {/* 2. Key Climate Probabilities (spans 4 cols) */}
+        <div className="space-y-4 lg:col-span-4 flex flex-col justify-between">
+          <ProbabilityMeter
+            label={t("climatePage.onsetProbability")}
+            value={onsetProb}
+            accent="forest"
+            definition={t("climate.definitions.onset")}
+          />
+          <ProbabilityMeter
+            label={t("climatePage.drySpellRisk")}
+            value={drySpellProb}
+            accent="earth"
+            definition={drySpellStreak > 0 ? `Active streak: ${drySpellStreak} days without rain` : t("climate.definitions.drySpell")}
+          />
+          <ProbabilityMeter
+            label={t("climatePage.heavyRainRisk")}
+            value={heavyRainProb}
+            accent="monsoon"
+            definition={t("climate.definitions.heavyRain")}
+          />
+        </div>
+
+        {/* 3. 14-Day Daily Rainfall Outlook (spans 7 cols) */}
+        <Card tone="default" className="lg:col-span-7">
+          <CardHeader
+            icon={CloudRain}
+            title={t("climatePage.rainfallOutlook")}
+            description={t("farmerDashboard.rainfallOutlookDesc")}
+            action={
+              <ButtonLink href="/farmer/climate" variant="ghost" size="sm">
+                {t("farmerDashboard.allClimateSignals")}
+                <ArrowRight size={14} aria-hidden />
+              </ButtonLink>
+            }
+          />
+          <div className="mt-4">
+            <RainfallBars points={rainfallPoints} height={210} />
+          </div>
+        </Card>
+
+        {/* 4. Risk Drivers & Active Alerts (spans 5 cols) */}
+        <div className="space-y-6 lg:col-span-5">
+          <Card tone="default">
+            <CardHeader
+              icon={Shield}
+              title={t("riskMapPage.whyAtRisk")}
+              description={t("farmerDashboard.riskDriversDesc")}
+            />
+            <div className="mt-4">
+              <DriverList items={driverItems} />
+            </div>
+          </Card>
+
+          {alerts.length > 0 && (
+            <Card tone="default">
+              <CardHeader
+                title={t("officerDashboard.alertsTitle")}
+                description={t("farmerDashboard.activeBlockAlerts")}
+              />
+              <ul className="mt-4 space-y-2.5">
+                {alerts.map((al) => (
+                  <AlertListItem
+                    key={al.id}
+                    severity={al.severity}
+                    title={t(al.titleKey)}
+                    time={`${al.timeAgoHours}h ago`}
+                  />
+                ))}
+              </ul>
+            </Card>
           )}
         </div>
       </div>
-
-      {/* ── Quick Actions ────────────────────────────────── */}
-      <div className="mt-6">
-        <p className="mb-3 text-sm font-semibold text-[var(--color-ink)]/60">
-          {t("farmer.quickActions")}
-        </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <QuickAction href="/farmer/climate" label={t("farmer.checkClimate")} icon={CloudRain} />
-          <QuickAction href="/farmer/risk-map" label={t("farmer.viewRiskMap")} icon={MapPinned} />
-          <QuickAction href="/farmer/crop" label={t("farmer.updateCrop")} icon={Sprout} />
-          <QuickAction href="/farmer/advisory" label={t("farmer.viewAdvisory")} icon={Shield} />
-        </div>
-      </div>
     </div>
-  );
-}
-
-/* ── Risk Factor Card ─────────────────────────────────────────── */
-
-function RiskFactor({
-  icon: Icon,
-  label,
-  value,
-  unit,
-  color,
-  detail,
-}: {
-  icon: typeof CloudRain;
-  label: string;
-  value: number;
-  unit: string;
-  color: string;
-  detail?: string;
-}) {
-  return (
-    <div className="rounded-2xl bg-[var(--color-paper)] p-4 border border-[var(--color-line)]/50">
-      <div className="flex items-center gap-2">
-        <Icon size={15} style={{ color }} />
-        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink)]/50">
-          {label}
-        </span>
-      </div>
-      <div className="mt-2 flex items-baseline gap-1">
-        <span className="tabular font-display text-3xl" style={{ color }}>
-          {value}
-        </span>
-        <span className="text-sm text-[var(--color-ink)]/45">{unit}</span>
-      </div>
-      {/* Mini bar */}
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-line)]/40">
-        <div
-          className="h-full rounded-full transition-all duration-700 ease-out"
-          style={{ width: `${Math.min(100, value)}%`, backgroundColor: color }}
-        />
-      </div>
-      {detail && (
-        <p className="mt-2 text-xs text-[var(--color-ink)]/50">{detail}</p>
-      )}
-    </div>
-  );
-}
-
-/* ── Quick Action ─────────────────────────────────────────────── */
-
-function QuickAction({
-  href,
-  label,
-  icon: Icon,
-}: {
-  href: string;
-  label: string;
-  icon: typeof CloudRain;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group flex flex-col items-center gap-2 rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-3 py-4 text-center text-sm font-medium text-[var(--color-ink)]/75 transition-all hover:border-[var(--color-forest)]/40 hover:shadow-[var(--shadow-sm)]"
-    >
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-forest)]/8 text-[var(--color-forest)] transition-transform group-hover:scale-110">
-        <Icon size={16} />
-      </span>
-      {label}
-    </Link>
   );
 }

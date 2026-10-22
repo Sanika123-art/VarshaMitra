@@ -1,430 +1,352 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
-/* ── Design Tokens ────────────────────────────────────────────── */
-:root {
-  /* Core palette — preserved from prototype */
-  --color-ink: #16231b;
-  --color-paper: #eef1ea;
-  --color-paper-raised: #f7f8f3;
+/* ═══════════════════════════════════════════════════════════════════
+   VarshaMitra design tokens
+   Refined minimalism · public-service clarity · agricultural geospatial
+   ═══════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* Surfaces — warm cream page, off-white cards */
+  --color-paper: #f6f2e7;
+  --color-paper-deep: #ece6d3;
+  --color-surface: #fbf9f3;
+  --color-surface-raised: #ffffff;
+
+  /* Text — all pairs checked ≥ 4.5:1 on paper/surface */
+  --color-ink: #1c2a22;
+  --color-ink-muted: #46564c;
+  --color-ink-subtle: #5d6c63;
+
+  /* Borders */
+  --color-line: #ddd6c2;
+  --color-line-strong: #c4bca3;
+
+  /* Brand — deep forest + muted agricultural greens */
   --color-forest: #1f4b3a;
   --color-forest-dark: #143126;
-  --color-sky: #33587e;
-  --color-clay: #a8442f;
-  --color-amber: #c1892c;
-  --color-moss: #4c7a4f;
-  --color-critical: #6e2519;
-  --color-line: #d8dccb;
+  --color-forest-soft: #e3ece5;
+  --color-moss: #5b8a5f;
+  --color-sage: #d9e4d5;
 
-  /* Extended palette */
-  --color-surface-dark: #0f2318;
-  --color-surface-warm: #f4f1e8;
-  --color-forest-light: #e8f0ec;
-  --color-sky-light: #e5edf5;
-  --color-clay-light: #f5e8e4;
-  --color-amber-light: #f5f0e1;
-  --color-forest-muted: #2d6b52;
+  /* Monsoon blue — rainfall, water, precipitation */
+  --color-monsoon: #2a5d88;
+  --color-monsoon-dark: #1d4366;
+  --color-monsoon-soft: #e1ecf5;
 
-  /* Gradients */
-  --gradient-earth: linear-gradient(135deg, #143126 0%, #1f4b3a 40%, #2d6b52 100%);
-  --gradient-sky: linear-gradient(135deg, #1a3a54 0%, #33587e 100%);
-  --gradient-paper: linear-gradient(180deg, var(--color-paper) 0%, var(--color-paper-raised) 100%);
-  --gradient-warm: linear-gradient(180deg, #f4f1e8 0%, var(--color-paper) 100%);
+  /* Earth — neutral soil tone for non-severity data (e.g. dry-spell probability) */
+  --color-earth: #8a6230;
+  --color-earth-soft: #f0e6d3;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(22, 35, 27, 0.06);
-  --shadow-md: 0 4px 12px rgba(22, 35, 27, 0.08);
-  --shadow-lg: 0 8px 32px rgba(22, 35, 27, 0.1);
-  --shadow-xl: 0 16px 48px rgba(22, 35, 27, 0.12);
-  --shadow-glow-forest: 0 0 20px rgba(31, 75, 58, 0.15);
-  --shadow-glow-risk: 0 0 16px rgba(110, 37, 25, 0.2);
+  /* Daily rainfall classes in charts */
+  --color-rain-normal: #6f9cc2;
+  --color-rain-heavy: #1d4366;
+  --color-rain-dry: #cdb07c;
+
+  /* Focus ring */
+  --color-focus: #1d5fb4;
+
+  /* Risk severity — fill (map/chart), ink (text on soft bg), soft (badge bg) */
+  --color-risk-low: #4c8a58;
+  --color-risk-low-ink: #2a6137;
+  --color-risk-low-soft: #e2eee3;
+  --color-risk-moderate: #d19a2a;
+  --color-risk-moderate-ink: #7d5205;
+  --color-risk-moderate-soft: #f7ecd0;
+  --color-risk-high: #d0642a;
+  --color-risk-high-ink: #9a3d0c;
+  --color-risk-high-soft: #f8e3d6;
+  --color-risk-critical: #9b1f1f;
+  --color-risk-critical-ink: #8a1818;
+  --color-risk-critical-soft: #f5dcdc;
 
   /* Typography */
-  --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", "Noto Serif", serif;
-  --font-body: "Inter", "Segoe UI", ui-sans-serif, system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
-  --font-devanagari: "Noto Sans Devanagari", "Nirmala UI", var(--font-body);
+  --font-sans: var(--font-inter), var(--font-noto-sans-devanagari), "Segoe UI", "Nirmala UI", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-source-serif), var(--font-noto-serif-devanagari), Georgia, "Nirmala UI", serif;
 
-  /* Spacing scale */
-  --space-section: clamp(3rem, 6vw, 5rem);
+  /* Radii — consistent, restrained */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows — thin and quiet */
+  --shadow-xs: 0 1px 0 rgba(28, 42, 34, 0.04);
+  --shadow-sm: 0 1px 2px rgba(28, 42, 34, 0.06), 0 1px 1px rgba(28, 42, 34, 0.04);
+  --shadow-md: 0 4px 14px rgba(28, 42, 34, 0.08);
+  --shadow-lg: 0 12px 32px rgba(28, 42, 34, 0.12);
 }
 
-/* ── Tailwind Theme Extension ─────────────────────────────────── */
-@theme inline {
-  --color-ink: var(--color-ink);
-  --color-paper: var(--color-paper);
-  --color-paper-raised: var(--color-paper-raised);
-  --color-forest: var(--color-forest);
-  --color-forest-dark: var(--color-forest-dark);
-  --color-sky: var(--color-sky);
-  --color-clay: var(--color-clay);
-  --color-amber: var(--color-amber);
-  --color-moss: var(--color-moss);
-  --color-critical: var(--color-critical);
-  --color-line: var(--color-line);
-  --color-surface-dark: var(--color-surface-dark);
-  --color-forest-muted: var(--color-forest-muted);
-  --font-display: var(--font-display);
-  --font-body: var(--font-body);
-}
-
-/* ── Base Styles ──────────────────────────────────────────────── */
-* {
-  border-color: var(--color-line);
-}
-
+/* ── Base ─────────────────────────────────────────────────────── */
 html {
+  font-size: 16px;
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
-
-html[lang="mr"] body {
-  font-family: var(--font-devanagari);
+html[data-text-size="lg"] {
+  font-size: 18px;
+}
+html[data-text-size="xl"] {
+  font-size: 20px;
 }
 
 body {
   background: var(--color-paper);
   color: var(--color-ink);
-  font-family: var(--font-body);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-.font-display {
-  font-family: var(--font-display);
+/* Marathi needs slightly more leading for Devanagari matras */
+html[lang="mr"] body {
+  line-height: 1.7;
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+html[lang="mr"] h1,
+html[lang="mr"] h2,
+html[lang="mr"] h3 {
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
+::selection {
+  background: var(--color-forest);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
 }
 
 .tabular {
   font-variant-numeric: tabular-nums;
 }
 
-::selection {
-  background: var(--color-forest);
-  color: var(--color-paper);
+/* Skip link */
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -4rem;
+  z-index: 100;
+  background: var(--color-forest-dark);
+  color: #fff;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 0.75rem;
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-forest);
-  outline-offset: 2px;
+/* ── Page chrome helpers ──────────────────────────────────────── */
+.container-page {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
 }
-
-/* ── Depth Surfaces ───────────────────────────────────────────── */
-.surface-raised {
-  background: var(--color-paper-raised);
-  box-shadow: var(--shadow-sm);
-}
-
-.surface-elevated {
-  background: var(--color-paper-raised);
-  box-shadow: var(--shadow-md);
-}
-
-.surface-overlay {
-  background: rgba(247, 248, 243, 0.95);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: var(--shadow-lg);
-}
-
-/* ── Topographic Patterns ─────────────────────────────────────── */
-.contour-field {
-  background-image:
-    repeating-radial-gradient(circle at 18% 22%, rgba(31, 75, 58, 0.07) 0, rgba(31, 75, 58, 0.07) 1px, transparent 1px, transparent 34px),
-    repeating-radial-gradient(circle at 82% 78%, rgba(51, 88, 126, 0.06) 0, rgba(51, 88, 126, 0.06) 1px, transparent 1px, transparent 42px);
-}
-
-.topo-pattern {
-  background-image:
-    url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M40 80 Q70 60 100 80 T160 80' fill='none' stroke='%231f4b3a' stroke-width='0.5' opacity='0.08'/%3E%3Cpath d='M30 120 Q80 95 120 120 T180 115' fill='none' stroke='%231f4b3a' stroke-width='0.5' opacity='0.06'/%3E%3Cpath d='M20 160 Q60 140 100 155 T170 150' fill='none' stroke='%2333587e' stroke-width='0.5' opacity='0.05'/%3E%3C/svg%3E");
-  background-size: 200px 200px;
-}
-
-.topo-dark {
-  background-image:
-    url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M40 80 Q70 60 100 80 T160 80' fill='none' stroke='%23ffffff' stroke-width='0.5' opacity='0.06'/%3E%3Cpath d='M30 120 Q80 95 120 120 T180 115' fill='none' stroke='%23ffffff' stroke-width='0.5' opacity='0.04'/%3E%3Cpath d='M20 160 Q60 140 100 155 T170 150' fill='none' stroke='%239fd6c1' stroke-width='0.5' opacity='0.05'/%3E%3C/svg%3E");
-  background-size: 200px 200px;
-}
-
-/* ── Atmospheric Sections ─────────────────────────────────────── */
-.section-atmospheric {
-  position: relative;
-  background: linear-gradient(180deg, var(--color-paper) 0%, var(--color-surface-warm) 50%, var(--color-paper) 100%);
-}
-
-.section-earth {
-  background: var(--gradient-earth);
-  color: white;
-}
-
-/* ── Animations ───────────────────────────────────────────────── */
-@keyframes rise-band {
-  from {
-    transform: translateY(6%);
+@media (min-width: 640px) {
+  .container-page {
+    padding-inline: 1.5rem;
   }
-
-  to {
-    transform: translateY(-2%);
+}
+@media (min-width: 1024px) {
+  .container-page {
+    padding-inline: 2rem;
   }
 }
 
-.rain-band {
-  animation: rise-band 9s ease-in-out infinite alternate;
+.eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-forest);
+}
+html[lang="mr"] .eyebrow {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 0.8125rem;
 }
 
-@keyframes count-fade {
+/* Subtle agricultural contour texture — used only in hero/footers */
+.contour-texture {
+  background-image:
+    url("data:image/svg+xml,%3Csvg width='240' height='240' viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%231f4b3a' stroke-width='0.6' opacity='0.12'%3E%3Cpath d='M0 60 Q60 30 120 60 T240 60'/%3E%3Cpath d='M0 100 Q60 70 120 100 T240 100'/%3E%3Cpath d='M0 140 Q60 110 120 140 T240 140'/%3E%3Cpath d='M0 180 Q60 150 120 180 T240 180'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 240px 240px;
+}
+.contour-texture-dark {
+  background-image:
+    url("data:image/svg+xml,%3Csvg width='240' height='240' viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.6' opacity='0.08'%3E%3Cpath d='M0 60 Q60 30 120 60 T240 60'/%3E%3Cpath d='M0 100 Q60 70 120 100 T240 100'/%3E%3Cpath d='M0 140 Q60 110 120 140 T240 140'/%3E%3Cpath d='M0 180 Q60 150 120 180 T240 180'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 240px 240px;
+}
+
+/* ── Motion — subtle only ─────────────────────────────────────── */
+@keyframes vm-fade-up {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(6px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
-
-.count-in {
-  animation: count-fade 0.5s ease-out both;
-}
-
-@keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .fade-up {
-  animation: fade-up 0.6s ease-out both;
+  animation: vm-fade-up 0.35s ease-out both;
 }
 
-.fade-up-delay-1 {
-  animation-delay: 0.1s;
-}
-
-.fade-up-delay-2 {
-  animation-delay: 0.2s;
-}
-
-.fade-up-delay-3 {
-  animation-delay: 0.3s;
-}
-
-.fade-up-delay-4 {
-  animation-delay: 0.4s;
-}
-
-@keyframes pulse-risk {
-
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(110, 37, 25, 0.3);
-  }
-
-  50% {
-    box-shadow: 0 0 0 6px rgba(110, 37, 25, 0);
-  }
-}
-
-.pulse-critical {
-  animation: pulse-risk 2s ease-in-out infinite;
-}
-
-@keyframes shimmer {
+@keyframes vm-shimmer {
   0% {
     background-position: -200% 0;
   }
-
   100% {
     background-position: 200% 0;
   }
 }
-
-.shimmer {
-  background: linear-gradient(90deg, var(--color-paper-raised) 25%, var(--color-paper) 50%, var(--color-paper-raised) 75%);
+.skeleton {
+  background: linear-gradient(90deg, var(--color-paper-deep) 25%, var(--color-surface) 50%, var(--color-paper-deep) 75%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
+  animation: vm-shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--radius-md);
 }
 
-@keyframes slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(24px);
-  }
-
+@keyframes vm-spin {
   to {
-    opacity: 1;
-    transform: translateX(0);
+    transform: rotate(360deg);
   }
 }
-
-.slide-in-right {
-  animation: slide-in-right 0.35s ease-out both;
+.spinner {
+  animation: vm-spin 0.8s linear infinite;
 }
 
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.slide-up {
-  animation: slide-up 0.35s ease-out both;
-}
-
-@keyframes float-gentle {
-
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
-.float-gentle {
-  animation: float-gentle 4s ease-in-out infinite;
-}
-
-@keyframes rain-drop {
-  0% {
-    transform: translateY(-20px);
-    opacity: 0;
-  }
-
-  20% {
-    opacity: 0.6;
-  }
-
-  100% {
-    transform: translateY(100px);
-    opacity: 0;
-  }
-}
-
-@keyframes flow-pulse {
-
-  0%,
-  100% {
-    opacity: 0.3;
-  }
-
-  50% {
-    opacity: 0.8;
-  }
-}
-
-.flow-pulse {
-  animation: flow-pulse 2s ease-in-out infinite;
-}
-
-/* ── Forecast Timeline ────────────────────────────────────────── */
-.timeline-bar {
-  position: relative;
-  height: 8px;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.timeline-rain {
-  background: var(--color-sky);
-  opacity: 0.7;
-}
-
-.timeline-dry {
-  background: var(--color-amber);
-  opacity: 0.5;
-}
-
-.timeline-heavy {
-  background: var(--color-clay);
-  opacity: 0.8;
-}
-
-/* ── Risk Gauge ───────────────────────────────────────────────── */
-.risk-arc {
-  fill: none;
-  stroke-linecap: round;
-  transition: stroke-dashoffset 1s ease-out;
-}
-
-/* ── Chart Improvements ───────────────────────────────────────── */
+/* ── Recharts ─────────────────────────────────────────────────── */
 .recharts-wrapper {
-  font-family: var(--font-body) !important;
+  font-family: var(--font-sans) !important;
+}
+.recharts-cartesian-axis-tick-value {
+  fill: var(--color-ink-muted);
+  font-size: 11px;
 }
 
-.recharts-default-tooltip {
-  border-radius: 12px !important;
-  border-color: var(--color-line) !important;
-  box-shadow: var(--shadow-md) !important;
-  font-size: 12px !important;
+/* ── Map (MapLibre) ───────────────────────────────────────────── */
+.maplibregl-map {
+  font-family: var(--font-sans);
+}
+.maplibregl-ctrl-attrib {
+  font-size: 11px;
+}
+.vm-marker {
+  display: block;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid #fff;
+  background: var(--marker-color, var(--color-risk-low));
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.vm-marker:hover {
+  transform: scale(1.12);
+}
+.vm-marker:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+.vm-marker[data-risk="low"] {
+  border-radius: 50%;
+}
+.vm-marker[data-risk="moderate"] {
+  border-radius: 4px;
+}
+.vm-marker[data-risk="high"] {
+  border-radius: 4px;
+  rotate: 45deg;
+}
+.vm-marker[data-risk="critical"] {
+  border-radius: 4px;
+  rotate: 45deg;
+  width: 30px;
+  height: 30px;
+  box-shadow:
+    0 0 0 3px rgba(155, 31, 31, 0.28),
+    0 1px 4px rgba(0, 0, 0, 0.45);
+}
+.vm-marker[aria-pressed="true"] {
+  outline: 3px solid var(--color-forest-dark);
+  outline-offset: 3px;
+  z-index: 5;
 }
 
-/* ── Map ──────────────────────────────────────────────────────── */
-.leaflet-container {
-  background: #1a2f25 !important;
-  font-family: var(--font-body);
+/* Marker shapes in legends (non-colour risk cue) */
+.risk-shape {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: var(--shape-color);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--color-line-strong);
 }
-
-.leaflet-tooltip {
-  font-family: var(--font-body) !important;
-  border-radius: 8px !important;
-  padding: 4px 10px !important;
-  font-size: 12px !important;
-  box-shadow: var(--shadow-md) !important;
+.risk-shape[data-risk="low"] {
+  border-radius: 50%;
+}
+.risk-shape[data-risk="moderate"] {
+  border-radius: 3px;
+}
+.risk-shape[data-risk="high"],
+.risk-shape[data-risk="critical"] {
+  border-radius: 3px;
+  rotate: 45deg;
+  width: 12px;
+  height: 12px;
 }
 
 /* ── Scrollbar ────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: var(--color-line);
-  border-radius: 3px;
+  background: var(--color-line-strong);
+  border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-ink);
-  opacity: 0.3;
+/* Native <dialog> backdrop */
+dialog::backdrop {
+  background: rgba(20, 49, 38, 0.45);
 }
 
-/* ── Reduced Motion ───────────────────────────────────────────── */
+/* ── Reduced motion ───────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-
-  .rain-band,
-  .count-in,
-  .fade-up,
-  .slide-in-right,
-  .slide-up,
-  .pulse-critical,
-  .shimmer,
-  .float-gentle,
-  .flow-pulse {
-    animation: none !important;
-  }
-
-  html {
-    scroll-behavior: auto;
-  }
-
-  * {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

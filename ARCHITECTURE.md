@@ -18,11 +18,11 @@ ADVISORY ENGINE
 WEB APPLICATION  ← you are here (this prototype)
 ```
 
-Everything above "WEB APPLICATION" is future work — see `DATA_SOURCES.md`,
-`AI_ML_PLAN.md` and `FUTURE_BACKEND.md`. This repository implements the web
-application layer only, against local mock data shaped exactly like the
-future engines' output so the swap-in is a data-layer change, not a UI
-rewrite.
+Everything above "WEB APPLICATION" was the original roadmap. Across
+Phases 1–6, this repository implemented both the web application layer and
+the Python FastAPI backend service in [`backend/`](./backend/) (data processing,
+indicators suite, heuristic risk scoring, soil profiles, and crop suitability).
+See [`backend/README.md`](./backend/README.md) for detailed backend architecture.
 
 ## Frontend stack
 

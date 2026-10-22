@@ -316,3 +316,27 @@ export const defaultLocation: SelectedLocation = {
   blockId: "maval",
   blockName: "Maval",
 };
+
+/** Maps the short agricultural-impact label on a block to an i18n key. */
+export function impactLabelKey(block: Block): string {
+  switch (block.agriculturalImpact) {
+    case "Low":
+      return "impact.low";
+    case "Moderate":
+      return "impact.moderate";
+    case "Moderate–High":
+      return "impact.moderateHigh";
+    default:
+      return "impact.high";
+  }
+}
+
+/** [west, south, east, north] bounds enclosing the given blocks, for map fitting. */
+export function boundsOf(blocks: Block[]): [[number, number], [number, number]] {
+  const lngs = blocks.map((b) => b.lng);
+  const lats = blocks.map((b) => b.lat);
+  return [
+    [Math.min(...lngs), Math.min(...lats)],
+    [Math.max(...lngs), Math.max(...lats)],
+  ];
+}

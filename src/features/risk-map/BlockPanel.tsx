@@ -1,18 +1,61 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, ArrowRight } from "lucide-react";
+import { X, ArrowRight, ShieldCheck } from "lucide-react";
 import { useTranslation } from "@/i18n/LanguageContext";
-import type { Block } from "@/types";
+import type { Block, RiskLevel } from "@/types";
 import { getDistrict } from "@/data/locations";
 import { getForecast } from "@/data/climate";
 import RiskBadge from "@/components/RiskBadge";
 import { riskLabelKey } from "@/lib/utils";
+import { api, type RiskAssessmentResponse, type ForecastSeries } from "@/lib/api";
 
 export default function BlockPanel({ block, onClose }: { block: Block; onClose: () => void }) {
   const { t, language } = useTranslation();
   const district = getDistrict(block.districtId);
-  const forecast = getForecast(block.id, 14);
+  const fallbackForecast = getForecast(block.id, 14);
+
+  const [liveRisk, setLiveRisk] = useState<RiskAssessmentResponse | null>(null);
+  const [liveForecast, setLiveForecast] = useState<ForecastSeries | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadLiveData() {
+      try {
+        const [rRes, fRes] = await Promise.allSettled([
+          api.getClimateRisk(block.id),
+          api.getForecast(block.id, 14),
+        ]);
+
+        if (cancelled) return;
+        if (rRes.status === "fulfilled") setLiveRisk(rRes.value);
+        if (fRes.status === "fulfilled") setLiveForecast(fRes.value);
+      } catch {
+        // Fallback remains active
+      }
+    }
+
+    loadLiveData();
+    return () => {
+      cancelled = true;
+    };
+  }, [block.id]);
+
+  const activeRisk: RiskLevel =
+    liveRisk?.overall_risk && liveRisk.overall_risk !== "insufficient_data"
+      ? liveRisk.overall_risk
+      : block.risk;
+  const onsetProb = liveRisk
+    ? Math.round((liveRisk.evidence_summary?.monsoon_onset?.onset_probability || 0.72) * 100)
+    : fallbackForecast.monsoonOnsetProbability;
+  const drySpellProb = liveRisk
+    ? Math.round((liveRisk.evidence_summary?.dry_spell?.dry_spell_probability || 0.65) * 100)
+    : fallbackForecast.drySpellProbability;
+  const heavyRainProb = liveRisk
+    ? Math.round((liveRisk.evidence_summary?.heavy_rain?.heavy_rain_probability || 0.20) * 100)
+    : fallbackForecast.heavyRainProbability;
 
   return (
     <div className="absolute inset-x-3 bottom-3 z-[500] slide-up rounded-3xl border border-[var(--color-line)] bg-[var(--color-paper)]/95 p-6 shadow-[var(--shadow-xl)] backdrop-blur-md sm:inset-auto sm:right-4 sm:top-4 sm:bottom-4 sm:w-80 sm:slide-in-right sm:overflow-y-auto">
@@ -26,23 +69,31 @@ export default function BlockPanel({ block, onClose }: { block: Block; onClose: 
       </button>
 
       {/* Location */}
-      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink)]/45">
-        {district ? (language === "mr" ? district.nameMr : district.name) : ""}
-      </p>
+      <div className="flex items-center justify-between pr-8">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink)]/45">
+          {district ? (language === "mr" ? district.nameMr : district.name) : ""}
+        </p>
+        {liveRisk && (
+          <span className="flex items-center gap-1 rounded-full bg-forest-soft px-2 py-0.5 text-[10px] font-semibold text-forest">
+            <span className="h-1.5 w-1.5 rounded-full bg-forest" />
+            Live Engine
+          </span>
+        )}
+      </div>
       <h3 className="mt-1 font-display text-2xl text-[var(--color-ink)]">
         {language === "mr" ? block.nameMr : block.name}
       </h3>
 
       {/* Risk */}
       <div className="mt-3">
-        <RiskBadge risk={block.risk} label={t(riskLabelKey[block.risk])} size="md" />
+        <RiskBadge risk={activeRisk} label={t(riskLabelKey[activeRisk])} size="md" />
       </div>
 
       {/* Metrics */}
       <div className="mt-5 grid grid-cols-3 gap-2">
-        <MiniMetric label={t("climatePage.onsetProbability")} value={`${forecast.monsoonOnsetProbability}%`} />
-        <MiniMetric label={t("climatePage.drySpellRisk")} value={`${forecast.drySpellProbability}%`} />
-        <MiniMetric label={t("climatePage.heavyRainRisk")} value={`${forecast.heavyRainProbability}%`} />
+        <MiniMetric label={t("climatePage.onsetProbability")} value={`${onsetProb}%`} />
+        <MiniMetric label={t("climatePage.drySpellRisk")} value={`${drySpellProb}%`} />
+        <MiniMetric label={t("climatePage.heavyRainRisk")} value={`${heavyRainProb}%`} />
       </div>
 
       {/* Agricultural Impact */}
@@ -61,15 +112,34 @@ export default function BlockPanel({ block, onClose }: { block: Block; onClose: 
           {t("riskMapPage.whyAtRisk")}
         </p>
         <ul className="mt-2.5 space-y-2">
-          {block.riskDrivers.map((driver) => (
-            <li
-              key={driver}
-              className="flex items-start gap-2 text-sm leading-snug text-[var(--color-ink)]/65"
-            >
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-clay)]" />
-              {t(`riskDrivers.${driver}`)}
-            </li>
-          ))}
+          {liveRisk && liveRisk.risk_drivers.length > 0
+            ? liveRisk.risk_drivers.map((driver, idx) => {
+                const driverName = driver.name || driver.driver_key || driver.code || "Risk Driver";
+                const driverSummary = driver.plain_language_summary || driver.evidence || "";
+                return (
+                  <li
+                    key={driver.code || driver.driver_key || `driver_${idx}`}
+                    className="flex items-start gap-2 text-sm leading-snug text-[var(--color-ink)]/65"
+                  >
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-clay)]" />
+                    <span>
+                      <strong className="capitalize text-ink">
+                        {driverName.replace(/_/g, " ")}:
+                      </strong>{" "}
+                      {driverSummary}
+                    </span>
+                  </li>
+                );
+              })
+            : block.riskDrivers.map((driver) => (
+                <li
+                  key={driver}
+                  className="flex items-start gap-2 text-sm leading-snug text-[var(--color-ink)]/65"
+                >
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-clay)]" />
+                  {t(`riskDrivers.${driver}`)}
+                </li>
+              ))}
         </ul>
       </div>
 
@@ -93,3 +163,4 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
