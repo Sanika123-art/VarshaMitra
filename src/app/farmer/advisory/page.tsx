@@ -129,29 +129,29 @@ export default function AdvisoryPage() {
   const headline = primaryItem
     ? (language === "mr" ? primaryItem.primary_action_mr : primaryItem.primary_action_en)
     : advisoryError
-    ? "Advisory currently unavailable"
-    : "Evaluating agricultural advisory...";
+      ? "Advisory currently unavailable"
+      : "Evaluating agricultural advisory...";
 
   const reason = primaryItem
     ? (language === "mr" ? primaryItem.plain_language_reason_mr : primaryItem.plain_language_reason_en)
     : advisoryError
-    ? advisoryError
-    : "Retrieving agronomic and meteorological data...";
+      ? advisoryError
+      : "Retrieving agronomic and meteorological data...";
 
   const water = primaryItem
     ? primaryItem.secondary_actions_en.find((a) => a.toLowerCase().includes("irrigation") || a.toLowerCase().includes("drainage") || a.toLowerCase().includes("water")) ||
-      primaryItem.secondary_actions_en[0] ||
-      "Monitor root zone moisture and avoid water stagnation."
+    primaryItem.secondary_actions_en[0] ||
+    "Monitor root zone moisture and avoid water stagnation."
     : "Data pending from regional meteorological service.";
 
   const prioritySignal: RiskLevel = primaryItem
     ? primaryItem.priority === "critical"
       ? "critical"
       : primaryItem.priority === "warning"
-      ? "high"
-      : primaryItem.priority === "advisory"
-      ? "moderate"
-      : "low"
+        ? "high"
+        : primaryItem.priority === "advisory"
+          ? "moderate"
+          : "low"
     : climateRisk?.overall_risk ?? "insufficient_data";
 
   function handleCropChange(newCropId: string) {
@@ -203,7 +203,7 @@ export default function AdvisoryPage() {
 
   return (
     <div className="space-y-8 bg-[#F4F0E5] text-[#252923]">
-      
+
       {/* ── Top Header ── */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-[#123C32]/20 pb-5">
         <div>
