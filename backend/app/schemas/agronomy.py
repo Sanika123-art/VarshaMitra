@@ -174,7 +174,7 @@ class SowingAssessmentResponse(BaseModel):
     sowing_readiness_summary_mr: str = Field(..., description="Plain-language recommendation summary in Marathi")
     supporting_factors: List[str] = Field(..., description="Conditions supporting sowing")
     risk_factors: List[str] = Field(..., description="Identified hazards or warnings")
-    antecedent_rainfall_7d_mm: float = Field(..., description="Trailing 7-day cumulative precipitation")
+    antecedent_rainfall_7d_mm: Optional[float] = Field(None, description="Trailing 7-day cumulative precipitation (null if not computed)")
     antecedent_rainfall_14d_mm: float = Field(..., description="Trailing 14-day cumulative precipitation")
     forecast_14d_hazard_flag: bool = Field(..., description="True if forward 14-day forecast contains dry spell or extreme deluge")
     forecast_summary: str = Field(..., description="Forward forecast evidence string")

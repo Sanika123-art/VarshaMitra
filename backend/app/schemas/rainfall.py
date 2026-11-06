@@ -10,6 +10,7 @@ class DataType(str, Enum):
     """Scientific classification of precipitation records to prevent conflation."""
     OBSERVATION = "observation"          # Ground truth from rain gauges or AWS (e.g. IMD stations)
     REANALYSIS = "reanalysis"            # Model-assimilated historical grids (e.g. ERA5-Land)
+    MODEL_ANALYSIS = "model_analysis"    # Recent-past values served by a forecast service (model analysis); NOT a gauge observation
     FORECAST = "forecast"                # Future numerical weather prediction (e.g. Open-Meteo GFS/ECMWF)
     SYNTHETIC_TEST = "synthetic_test"    # Strictly labeled test fixtures and benchmarks
 
@@ -147,6 +148,10 @@ class ProviderStatusResponse(BaseModel):
     )
     documentation_url: str = Field(..., description="URL to official provider documentation")
     attribution: str = Field(..., description="Attribution text")
+    integration_status: str = Field(
+        default="implemented",
+        description="implemented | implemented_unverified | not_implemented | reference_only",
+    )
 
 
 class HistoricalRainfallRecord(BaseModel):
@@ -200,3 +205,7 @@ class SourceInventoryItem(BaseModel):
     authentication: str = Field(..., description="Auth mechanism (free open access, API key, registration)")
     current_reachability: str = Field(..., description="operational | configuration_required | reference_catalog")
     integration_role: str = Field(..., description="How this dataset is used in VarshaMitra")
+    integration_status: str = Field(
+        default="reference_only",
+        description="implemented | implemented_unverified | not_implemented | reference_only",
+    )

@@ -1,11 +1,29 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Noto_Sans_Devanagari, Noto_Serif_Devanagari, Source_Serif_4 } from "next/font/google";
+import {
+  Inter,
+  Space_Grotesk,
+  IBM_Plex_Mono,
+  Noto_Sans_Devanagari,
+  Noto_Serif_Devanagari,
+  Source_Serif_4,
+} from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { AppStateProvider } from "@/hooks/useAppState";
 import AppFrame from "@/components/shell/AppFrame";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
+  display: "swap",
+});
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-ibm-plex-mono",
+  display: "swap",
+});
 const sourceSerif = Source_Serif_4({ subsets: ["latin"], variable: "--font-source-serif", display: "swap" });
 const notoSansDeva = Noto_Sans_Devanagari({
   subsets: ["devanagari"],
@@ -45,7 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${inter.variable} ${sourceSerif.variable} ${notoSansDeva.variable} ${notoSerifDeva.variable} h-full antialiased`}
+      className={`${inter.variable} ${spaceGrotesk.variable} ${ibmPlexMono.variable} ${sourceSerif.variable} ${notoSansDeva.variable} ${notoSerifDeva.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">

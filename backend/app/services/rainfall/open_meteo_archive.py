@@ -189,8 +189,9 @@ class OpenMeteoArchiveProvider(RainfallProvider):
         self,
         block: BlockDetail,
         days: int = 7,
+        client: Optional[object] = None,
     ) -> RainfallObservationSeries:
-        """Fetch recent historical days from archive."""
+        """Fetch recent historical days from archive (`client` accepted for interface parity; unused)."""
         today = date.today()
         # ERA5-Land archive typically trails by 2-5 days
         end_date = today
@@ -245,7 +246,7 @@ class OpenMeteoArchiveProvider(RainfallProvider):
                 else:
                     last_error = HTTPException(
                         status_code=status.HTTP_502_BAD_GATEWAY,
-                        detail=f"Historical archive provider returned HTTP {response.status_code}: {response.text[:200]}",
+                        detail=f"Historical archive provider returned HTTP {response.status_code}.",
                     )
             except httpx.TimeoutException:
                 last_error = HTTPException(

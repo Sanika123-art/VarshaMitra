@@ -17,11 +17,11 @@ SPECIFICATION & INTEGRATION REQUIREMENTS:
 """
 
 from datetime import date, datetime, timezone
-import os
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException, status
 import httpx
 
+from app.core.config import settings
 from app.core.logging import logger
 from app.schemas.location import BlockDetail
 from app.schemas.rainfall import (
@@ -44,8 +44,8 @@ class IMDRainfallProvider(RainfallProvider):
         api_key: Optional[str] = None,
         timeout_seconds: float = 6.0,
     ) -> None:
-        self._base_url = (base_url or os.getenv("IMD_API_BASE_URL", "https://api.imd.gov.in")).rstrip("/")
-        self._api_key = api_key or os.getenv("IMD_API_KEY")
+        self._base_url = (base_url or settings.IMD_API_BASE_URL).rstrip("/")
+        self._api_key = api_key or settings.IMD_API_KEY
         self._timeout_seconds = timeout_seconds
 
     @property
@@ -78,6 +78,7 @@ class IMDRainfallProvider(RainfallProvider):
                 required_credentials=["IMD_API_KEY", "IMD_API_BASE_URL"],
                 documentation_url="https://api.imd.gov.in/public/api_reference.html",
                 attribution="India Meteorological Department (IMD), Ministry of Earth Sciences, Government of India.",
+                integration_status="implemented_unverified",
             )
 
         # Probe with configured API key
@@ -115,6 +116,7 @@ class IMDRainfallProvider(RainfallProvider):
             required_credentials=["IMD_API_KEY", "IMD_API_BASE_URL"],
             documentation_url="https://api.imd.gov.in/public/api_reference.html",
             attribution="India Meteorological Department (IMD), Ministry of Earth Sciences, Government of India.",
+            integration_status="implemented_unverified",
         )
 
     def normalize_raw_imd_response(
@@ -221,6 +223,7 @@ class IMDRainfallProvider(RainfallProvider):
         self,
         block: BlockDetail,
         days: int = 7,
+        client: Optional[object] = None,
     ) -> RainfallObservationSeries:
         """Fetch observations from official IMD API gateway."""
         if not self.is_configured:

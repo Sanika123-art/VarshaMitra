@@ -5,6 +5,9 @@
 
 import type {
   BlockDetail,
+  ChatConversationDetail,
+  ChatConversationItem,
+  ChatMessageItem,
   ClimateIndicatorsResponse,
   CropAdvisoryResponse,
   CropRequirement,
@@ -12,17 +15,21 @@ import type {
   DistrictDetail,
   ExplanationResponse,
   ForecastSeries,
+  LocationResolveRequest,
+  LocationSearchItem,
+  LocationSearchResponse,
   RegionalSoilSummaryResponse,
   RiskAssessmentResponse,
+  RiskSummaryResponse,
   SowingAssessmentResponse,
   SuitabilityAssessmentResponse,
 } from "./types";
 
 export class ApiError extends Error {
   status: number;
-  detail?: any;
+  detail?: unknown;
 
-  constructor(status: number, message: string, detail?: any) {
+  constructor(status: number, message: string, detail?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
@@ -65,10 +72,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      let errorDetail: any = null;
+      let errorDetail: unknown = null;
       let errorMsg = `API request failed with status ${response.status}`;
       try {
-        const body = await response.json();
+        const body = (await response.json()) as { detail?: unknown };
         errorDetail = body;
         if (body?.detail) {
           errorMsg = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
@@ -80,12 +87,13 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     }
 
     return (await response.json()) as T;
-  } catch (error: any) {
+  } catch (error: unknown) {
     clearTimeout(timeoutId);
     if (error instanceof ApiError) {
       throw error;
     }
-    if (error.name === "AbortError") {
+    const err = error as Error;
+    if (err?.name === "AbortError") {
       throw new ApiError(408, `Request timeout after ${timeoutMs}ms connecting to ${url}`);
     }
     throw new ApiError(503, `Network error: Failed to fetch from VarshaMitra API at ${url}`);
@@ -98,7 +106,22 @@ export const api = {
     return request("/health");
   },
 
-  // Locations
+  // Locations & Geocoding
+  async searchLocations(query: string, limit: number = 6): Promise<LocationSearchResponse> {
+    return request(`/api/v1/locations/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+  },
+
+  async reverseGeocodeLocation(lat: number, lon: number): Promise<LocationSearchItem> {
+    return request(`/api/v1/locations/reverse?lat=${lat}&lon=${lon}`);
+  },
+
+  async resolveLocation(payload: LocationResolveRequest): Promise<BlockDetail> {
+    return request("/api/v1/locations/resolve", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
   async getDistricts(): Promise<DistrictDetail[]> {
     return request("/api/v1/locations/districts");
   },
@@ -109,7 +132,7 @@ export const api = {
 
   async getBlocks(districtId?: string): Promise<BlockDetail[]> {
     const q = districtId ? `?district_id=${encodeURIComponent(districtId)}` : "";
-    const res = await request<any>(`/api/v1/locations/blocks${q}`);
+    const res = await request<BlockDetail[] | { items: BlockDetail[] }>(`/api/v1/locations/blocks${q}`);
     return Array.isArray(res) ? res : (res?.items ?? []);
   },
 
@@ -131,15 +154,29 @@ export const api = {
     return request(`/api/v1/risk/${encodeURIComponent(blockId)}`);
   },
 
+  async getRiskSummary(windowDays: number = 14, provider: string = "open-meteo"): Promise<RiskSummaryResponse> {
+    return request(`/api/v1/risk/summary?window_days=${windowDays}&provider=${encodeURIComponent(provider)}`);
+  },
+
   // Soil Intelligence
   async getRegionalSoil(blockId: string): Promise<RegionalSoilSummaryResponse> {
     return request(`/api/v1/soil/${encodeURIComponent(blockId)}`);
   },
 
   // Crop Catalogue & Agronomy
-  async getCrops(season?: string): Promise<CropRequirement[]> {
-    const q = season ? `?season=${encodeURIComponent(season)}` : "";
-    return request(`/api/v1/crops${q}`);
+  async getCrops(
+    filter?: { season?: string; category?: string; search?: string } | string
+  ): Promise<CropRequirement[]> {
+    if (typeof filter === "string") {
+      const q = filter ? `?season=${encodeURIComponent(filter)}` : "";
+      return request(`/api/v1/crops${q}`);
+    }
+    const params = new URLSearchParams();
+    if (filter?.season) params.set("season", filter.season);
+    if (filter?.category) params.set("category", filter.category);
+    if (filter?.search) params.set("search", filter.search);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    return request(`/api/v1/crops${qs}`);
   },
 
   async getCropDetails(cropId: string): Promise<CropRequirement> {
@@ -149,10 +186,12 @@ export const api = {
   async getCropSuitability(
     blockId: string,
     season: string = "kharif",
-    waterSource: string = "rainfed"
+    waterSource: string = "rainfed",
+    cropId?: string
   ): Promise<SuitabilityAssessmentResponse> {
-    const q = `?season=${encodeURIComponent(season)}&water_source=${encodeURIComponent(waterSource)}`;
-    return request(`/api/v1/crops/suitability/${encodeURIComponent(blockId)}${q}`);
+    const params = new URLSearchParams({ season, water_source: waterSource });
+    if (cropId) params.set("crop_id", cropId);
+    return request(`/api/v1/crops/suitability/${encodeURIComponent(blockId)}?${params.toString()}`);
   },
 
   async getSowingReadiness(
@@ -200,5 +239,75 @@ export const api = {
   // Historical Storage Summary
   async getDatasetSummary(): Promise<DatasetSummaryResponse> {
     return request("/api/v1/dataset/summary");
+  },
+
+  // Saarthi AI Farming Companion
+  async createChatConversation(payload: {
+    locationId?: string;
+    cropId?: string;
+    stageId?: string;
+    language?: string;
+    title?: string;
+  } = {}): Promise<ChatConversationItem> {
+    return request("/api/v1/chat/conversations", {
+      method: "POST",
+      body: JSON.stringify({
+        location_id: payload.locationId,
+        crop_id: payload.cropId,
+        stage_id: payload.stageId,
+        language: payload.language ?? "en",
+        title: payload.title,
+      }),
+    });
+  },
+
+  async getChatConversations(): Promise<ChatConversationItem[]> {
+    return request("/api/v1/chat/conversations");
+  },
+
+  async getChatConversation(conversationId: string): Promise<ChatConversationDetail> {
+    return request(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}`);
+  },
+
+  async sendChatMessage(
+    conversationId: string,
+    content: string,
+    context?: {
+      locationId?: string;
+      cropId?: string;
+      stageId?: string;
+      language?: string;
+    }
+  ): Promise<ChatMessageItem> {
+    const params = new URLSearchParams();
+    if (context?.locationId) params.set("location_id", context.locationId);
+    if (context?.cropId) params.set("crop_id", context.cropId);
+    if (context?.stageId) params.set("stage_id", context.stageId);
+    if (context?.language) params.set("language", context.language);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+
+    return request(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/messages${qs}`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  async updateChatConversation(conversationId: string, title: string): Promise<{ status: string }> {
+    return request(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    });
+  },
+
+  async deleteChatConversation(conversationId: string): Promise<{ status: string }> {
+    return request(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}`, {
+      method: "DELETE",
+    });
+  },
+
+  async clearChatConversations(): Promise<{ status: string; cleared_conversations_count: number }> {
+    return request("/api/v1/chat/conversations", {
+      method: "DELETE",
+    });
   },
 };

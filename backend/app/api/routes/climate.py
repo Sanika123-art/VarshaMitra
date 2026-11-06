@@ -8,17 +8,9 @@ from app.schemas.climate import (
     ClimateIndicatorsResponse,
     MLBoundarySpecification,
 )
-from app.services.climate.anomaly import compute_rainfall_anomaly
-from app.services.climate.indicators import (
-    compute_accumulation,
-    compute_data_quality,
-    compute_dry_spells,
-    compute_heavy_rain,
-)
-from app.services.climate.onset import compute_monsoon_onset
+from app.services.climate.assessment import evaluate_block
 from app.services.location_service import location_service
 from app.services.ml.boundary import get_ml_boundary_specification
-from app.services.rainfall.factory import get_rainfall_provider
 
 router = APIRouter(prefix="/climate", tags=["Climate Indicators"])
 
@@ -35,8 +27,8 @@ async def get_climate_indicators(
     window_days: int = Query(
         default=14,
         ge=3,
-        le=60,
-        description="Analysis window in days (3 to 60 days)",
+        le=30,
+        description="Analysis window in days (3 to 30 days)",
         examples=[14],
     ),
     provider: str = Query(
@@ -58,34 +50,24 @@ async def get_climate_indicators(
             detail=f"Block '{block_id}' not found in curated Maharashtra dataset.",
         )
 
-    provider_instance = get_rainfall_provider(provider)
-    obs_series = await provider_instance.get_recent_observations(block=block, days=window_days)
-
-    accumulation = compute_accumulation(obs_series.observations)
-    dry_spell = compute_dry_spells(obs_series.observations)
-    heavy_rain = compute_heavy_rain(obs_series.observations)
-    anomaly = compute_rainfall_anomaly(
-        observed_mm=accumulation.total_mm,
-        baseline_normal_mm=baseline_normal_mm,
-    )
-    monsoon_onset = compute_monsoon_onset(obs_series.observations)
-    data_quality = compute_data_quality(obs_series.observations)
+    ev = await evaluate_block(block, provider, window_days, baseline_normal_mm)
 
     return ClimateIndicatorsResponse(
         block_id=block.id,
         block_name=block.name,
         district_name=block.district_name,
         window_days=window_days,
-        start_date=obs_series.start_date,
-        end_date=obs_series.end_date,
-        accumulation=accumulation,
-        dry_spell=dry_spell,
-        heavy_rain=heavy_rain,
-        anomaly=anomaly,
-        monsoon_onset=monsoon_onset,
-        data_quality=data_quality,
+        start_date=ev.series.start_date,
+        end_date=ev.series.end_date,
+        accumulation=ev.accumulation,
+        dry_spell=ev.dry_spell,
+        heavy_rain=ev.heavy_rain,
+        anomaly=ev.anomaly,
+        monsoon_onset=ev.monsoon_onset,
+        data_quality=ev.data_quality,
         method_version=RISK_ENGINE_METHOD_VERSION,
         retrieved_at=datetime.now(timezone.utc),
+        data_provenance=ev.provenance,
     )
 
 

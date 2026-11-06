@@ -1,6 +1,7 @@
 """Abstract base interface for rainfall data providers."""
 
 from abc import ABC, abstractmethod
+from typing import Optional
 from app.schemas.location import BlockDetail
 from app.schemas.rainfall import ProviderStatusResponse, RainfallObservationSeries
 
@@ -25,6 +26,7 @@ class RainfallProvider(ABC):
         self,
         block: BlockDetail,
         days: int = 7,
+        client: Optional[object] = None,
     ) -> RainfallObservationSeries:
         """Fetch and normalize daily rainfall observations for an administrative block."""
         pass

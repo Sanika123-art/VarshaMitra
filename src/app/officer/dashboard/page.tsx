@@ -1,434 +1,384 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import {
   ShieldAlert,
   BarChart3,
-  Sprout,
   ArrowRight,
   TrendingUp,
   Layers,
-  CheckCircle2,
+  MapPin,
+  RefreshCw,
+  Clock,
+  Sparkles,
+  ExternalLink,
+  Info,
 } from "lucide-react";
 import { useTranslation } from "@/i18n/LanguageContext";
-import {
-  regionRiskCounts,
-  highRiskLocations,
-  cropExposure,
-  alerts,
-} from "@/data/officer";
-import { getBlock, getDistrict } from "@/data/locations";
-import { getForecast } from "@/data/climate";
-import { deriveAdvisory } from "@/data/advisories";
-import { pickName, riskColor, riskLabelKey } from "@/lib/utils";
+import { riskColor, riskLabelKey } from "@/lib/utils";
 import RiskBadge from "@/components/RiskBadge";
 import type { RiskLevel } from "@/types";
-import { api, type BlockDetail, type RiskAssessmentResponse } from "@/lib/api";
 import {
-  PageHeader,
-  MetaChip,
-  Card,
-  CardHeader,
-  DataStatus,
-  AlertListItem,
-  ButtonLink,
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui";
+  api,
+  type RiskSummaryResponse,
+  type RiskAssessmentResponse,
+  type ForecastSeries,
+} from "@/lib/api";
+import { ApiUnavailableState, LoadingBlock } from "@/components/ui/States";
 
 export default function OfficerDashboard() {
   const { t, language } = useTranslation();
-  const fallbackCounts = regionRiskCounts();
-  const fallbackLocations = highRiskLocations();
 
-  const [liveBlocks, setLiveBlocks] = useState<BlockDetail[]>([]);
-  const [liveRisks, setLiveRisks] = useState<Record<string, RiskAssessmentResponse>>({});
-  const [isLive, setIsLive] = useState(false);
+  const [summary, setSummary] = useState<RiskSummaryResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [inspectId, setInspectId] = useState<string | null>(null);
 
-  const [inspectId, setInspectId] = useState<string | null>(fallbackLocations[0]?.blockId ?? null);
+  // Inspector detailed data
+  const [inspectRisk, setInspectRisk] = useState<RiskAssessmentResponse | null>(null);
+  const [inspectForecast, setInspectForecast] = useState<ForecastSeries | null>(null);
+  const [inspectLoading, setInspectLoading] = useState(false);
+
+  const fetchSummary = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.getRiskSummary(14);
+      setSummary(data);
+      if (data.items.length > 0 && !inspectId) {
+        const priorityBlock = data.items.find(
+          (b) => b.overall_risk === "critical" || b.overall_risk === "high"
+        ) ?? data.items[0];
+        setInspectId(priorityBlock.block_id);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load officer risk summary";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [inspectId]);
 
   useEffect(() => {
     let cancelled = false;
-
-    async function loadData() {
+    async function load() {
       try {
-        const blocks = await api.getBlocks();
-        if (cancelled || !blocks.length) return;
-        setLiveBlocks(blocks);
-
-        // Fetch risk assessments in parallel for all blocks
-        const riskResults = await Promise.allSettled(
-          blocks.map((b) => api.getClimateRisk(b.id))
-        );
-
+        const data = await api.getRiskSummary(14);
         if (cancelled) return;
-        const riskMap: Record<string, RiskAssessmentResponse> = {};
-        riskResults.forEach((r) => {
-          if (r.status === "fulfilled") {
-            riskMap[r.value.block_id] = r.value;
-          }
-        });
-
-        if (Object.keys(riskMap).length > 0) {
-          setLiveRisks(riskMap);
-          setIsLive(true);
+        setSummary(data);
+        if (data.items.length > 0) {
+          const priorityBlock = data.items.find(
+            (b) => b.overall_risk === "critical" || b.overall_risk === "high"
+          ) ?? data.items[0];
+          setInspectId(priorityBlock.block_id);
         }
-      } catch {
-        // Fallback remains active
+      } catch (err: unknown) {
+        if (!cancelled) {
+          const msg = err instanceof Error ? err.message : "Failed to load officer risk summary";
+          setError(msg);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
-
-    loadData();
+    load();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // Compute live counts if live data is available
-  const counts = isLive
-    ? Object.values(liveRisks).reduce(
-        (acc, curr) => {
-          const r = curr.overall_risk;
-          if (r !== "insufficient_data" && r in acc) {
-            acc[r as RiskLevel]++;
-          }
-          return acc;
-        },
-        { critical: 0, high: 0, moderate: 0, low: 0 } as Record<RiskLevel, number>
-      )
-    : fallbackCounts;
+  useEffect(() => {
+    if (!inspectId) return;
+    let cancelled = false;
 
-  const total = counts.critical + counts.high + counts.moderate + counts.low || 1;
+    Promise.resolve().then(() => {
+      if (!cancelled) setInspectLoading(true);
+    });
 
-  const inspectBlock = inspectId ? getBlock(inspectId) : undefined;
-  const inspectDistrict = inspectBlock ? getDistrict(inspectBlock.districtId) : undefined;
-  const inspectForecast = inspectBlock ? getForecast(inspectBlock.id, 14) : null;
-  const inspectAdvisory = inspectBlock ? deriveAdvisory(inspectBlock.id, "soybean", "sowing") : null;
+    Promise.allSettled([
+      api.getClimateRisk(inspectId),
+      api.getForecast(inspectId, 14),
+    ]).then(([riskRes, fcRes]) => {
+      if (cancelled) return;
+      if (riskRes.status === "fulfilled") setInspectRisk(riskRes.value);
+      if (fcRes.status === "fulfilled") setInspectForecast(fcRes.value);
+      setInspectLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [inspectId]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center bg-[#F4F0E5]">
+        <LoadingBlock label="Aggregating Maharashtra block risk overview..." />
+      </div>
+    );
+  }
+
+  if (error || !summary) {
+    return (
+      <div className="py-12 max-w-xl mx-auto bg-[#F4F0E5]">
+        <ApiUnavailableState
+          serviceName="Officer Decision Engine"
+          error={error ?? undefined}
+          onRetry={fetchSummary}
+        />
+      </div>
+    );
+  }
+
+  const items = summary.items;
+  const counts: Record<RiskLevel, number> = {
+    critical: items.filter((i) => i.overall_risk === "critical").length,
+    high: items.filter((i) => i.overall_risk === "high").length,
+    moderate: items.filter((i) => i.overall_risk === "moderate").length,
+    low: items.filter((i) => i.overall_risk === "low").length,
+    insufficient_data: items.filter((i) => i.status === "unavailable" || i.overall_risk === "insufficient_data").length,
+  };
+
+  const total = items.length || 1;
+  const inspectedItem = items.find((b) => b.block_id === inspectId) ?? items[0];
+
+  const sortedItems = [...items].sort((a, b) => {
+    const order: Record<string, number> = {
+      critical: 0,
+      high: 1,
+      moderate: 2,
+      low: 3,
+      insufficient_data: 4,
+    };
+    const rA = a.overall_risk ?? "insufficient_data";
+    const rB = b.overall_risk ?? "insufficient_data";
+    return (order[rA] ?? 5) - (order[rB] ?? 5);
+  });
 
   return (
-    <div className="space-y-6">
-      {/* ── Page Header ────────────────────────────────────── */}
-      <PageHeader
-        eyebrow={t("officerDashboard.eyebrow")}
-        title={t("officer.dashboardTitle")}
-        description={t("officerDashboard.subtitle")}
-        actions={
-          <div className="flex gap-2">
-            <ButtonLink href="/officer/risk-map" variant="primary" size="sm">
-              <Layers size={15} aria-hidden />
-              {t("nav.riskMap")}
-            </ButtonLink>
-            <ButtonLink href="/officer/insights" variant="secondary" size="sm">
-              <TrendingUp size={15} aria-hidden />
-              {t("nav.insights")}
-            </ButtonLink>
-          </div>
-        }
-      >
-        <MetaChip>
-          <span className="font-semibold text-ink">{total}</span> {t("officerDashboard.monitoredBlocks")}
-        </MetaChip>
-        <MetaChip>
-          <span className="font-semibold text-risk-critical-ink">{counts.critical}</span> {t("common.riskCritical")}
-        </MetaChip>
-        <MetaChip>
-          <span className="font-semibold text-risk-high-ink">{counts.high}</span> {t("common.riskHigh")}
-        </MetaChip>
-      </PageHeader>
-
-      {/* ── Provenance Banner ───────────────────────────────── */}
-      <DataStatus kind="assessment" />
-
-      {/* ── Regional Risk Distribution ──────────────────────── */}
-      <Card tone="default">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
+    <div className="space-y-8 bg-[#F4F0E5] text-[#252923]">
+      
+      {/* ── Page Header ── */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-[#123C32]/20 pb-5">
+        <div>
           <div className="flex items-center gap-2">
-            <BarChart3 size={18} className="text-forest" aria-hidden />
-            <h2 className="font-serif text-base font-semibold text-ink">
+            <span className="rounded border border-[#172B4D] bg-[#172B4D] px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-[#F4F0E5]">
+              Administrative Cockpit
+            </span>
+            <span className="font-mono text-xs font-semibold text-[#172B4D]">
+              Maharashtra State Agriculture Department
+            </span>
+          </div>
+          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-[#172B4D] sm:text-3xl">
+            {t("officer.dashboardTitle")}
+          </h1>
+          <p className="mt-1 font-sans text-xs text-[#252923]/70 sm:text-sm">
+            {t("officerDashboard.subtitle")}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Link
+            href="/officer/risk-map"
+            className="flex items-center gap-1.5 rounded-lg border-2 border-[#172B4D] bg-[#172B4D] px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-[#F4F0E5] shadow-[2px_2px_0px_#252923] hover:bg-[#123C32] transition"
+          >
+            <Layers size={14} className="text-[#E6A52E]" />
+            <span>Statewide GIS Map</span>
+          </Link>
+          <Link
+            href="/officer/insights"
+            className="flex items-center gap-1.5 rounded-lg border-2 border-[#172B4D] bg-white px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-[#172B4D] shadow-[2px_2px_0px_#172B4D] hover:bg-[#F4F0E5] transition"
+          >
+            <TrendingUp size={14} />
+            <span>{t("nav.insights")}</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Key Metrics Summary Strip ── */}
+      <div className="grid gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border-2 border-[#123C32] bg-white p-4 shadow-[3px_3px_0px_#123C32]">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/60">Monitored Talukas</span>
+          <p className="mt-1 font-mono text-2xl font-black text-[#123C32]">{total}</p>
+          <p className="font-mono text-xs text-[#252923]/60">Across 36 Districts</p>
+        </div>
+
+        <div className="rounded-xl border-2 border-[#C7473B] bg-white p-4 shadow-[3px_3px_0px_#C7473B]">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#C7473B]">Critical Alert Blocks</span>
+          <p className="mt-1 font-mono text-2xl font-black text-[#C7473B]">{counts.critical}</p>
+          <p className="font-mono text-xs text-[#252923]/60">{Math.round((counts.critical / total) * 100)}% of state blocks</p>
+        </div>
+
+        <div className="rounded-xl border-2 border-[#E58A38] bg-white p-4 shadow-[3px_3px_0px_#E58A38]">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#E58A38]">High Risk Blocks</span>
+          <p className="mt-1 font-mono text-2xl font-black text-[#E58A38]">{counts.high}</p>
+          <p className="font-mono text-xs text-[#252923]/60">{Math.round((counts.high / total) * 100)}% of state blocks</p>
+        </div>
+
+        <div className="rounded-xl border-2 border-[#3B8B61] bg-white p-4 shadow-[3px_3px_0px_#3B8B61]">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#3B8B61]">Favorable / Low Risk</span>
+          <p className="mt-1 font-mono text-2xl font-black text-[#3B8B61]">{counts.low}</p>
+          <p className="font-mono text-xs text-[#252923]/60">{Math.round((counts.low / total) * 100)}% of state blocks</p>
+        </div>
+      </div>
+
+      {/* ── Statewide Proportional Risk Distribution ── */}
+      <div className="rounded-xl border-2 border-[#123C32] bg-white p-6 shadow-[4px_4px_0px_#123C32]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-[#123C32]/15 pb-3">
+          <div className="flex items-center gap-2">
+            <BarChart3 size={18} className="text-[#123C32]" />
+            <h2 className="font-display text-base font-bold text-[#123C32]">
               {t("officer.riskDistribution")}
             </h2>
           </div>
-          <span className="text-xs text-ink-muted">
-            {t("officerDashboard.totalCoverage", { count: total })}
+          <span className="font-mono text-xs text-[#252923]/60">
+            {t("officerDashboard.totalCoverage", { count: total })} (14-day evaluation cycle)
           </span>
         </div>
 
         {/* Proportional distribution bar */}
-        <div className="mt-4 flex h-7 overflow-hidden rounded-md border border-line">
+        <div className="mt-4 flex h-7 overflow-hidden rounded-md border-2 border-[#123C32]">
           {[
-            { level: "critical" as RiskLevel, count: counts.critical, bg: "bg-risk-critical" },
-            { level: "high" as RiskLevel, count: counts.high, bg: "bg-risk-high" },
-            { level: "moderate" as RiskLevel, count: counts.moderate, bg: "bg-risk-moderate" },
-            { level: "low" as RiskLevel, count: counts.low, bg: "bg-risk-low" },
+            { level: "critical" as RiskLevel, count: counts.critical, bg: "bg-[#C7473B]" },
+            { level: "high" as RiskLevel, count: counts.high, bg: "bg-[#E58A38]" },
+            { level: "moderate" as RiskLevel, count: counts.moderate, bg: "bg-[#E6B83F]" },
+            { level: "low" as RiskLevel, count: counts.low, bg: "bg-[#3B8B61]" },
+            { level: "insufficient_data" as RiskLevel, count: counts.insufficient_data, bg: "bg-[#252923]" },
           ].map((seg) => {
             const pct = (seg.count / total) * 100;
             if (pct === 0) return null;
             return (
               <div
                 key={seg.level}
-                className={`${seg.bg} flex items-center justify-center text-[11px] font-bold text-white transition-all`}
+                className={`${seg.bg} flex items-center justify-center font-mono text-[10px] font-bold text-white transition-all`}
                 style={{ width: `${pct}%` }}
-                title={`${t(riskLabelKey[seg.level])}: ${seg.count}`}
+                title={`${seg.level}: ${seg.count}`}
               >
-                {pct > 12 && `${seg.count}`}
+                {pct > 8 && `${seg.count}`}
               </div>
             );
           })}
         </div>
 
-        {/* Legend stats */}
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { level: "critical" as RiskLevel, count: counts.critical },
-            { level: "high" as RiskLevel, count: counts.high },
-            { level: "moderate" as RiskLevel, count: counts.moderate },
-            { level: "low" as RiskLevel, count: counts.low },
-          ].map((item) => (
-            <div
-              key={item.level}
-              className="rounded-lg border border-line bg-surface-raised p-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-ink-muted">{t(riskLabelKey[item.level])}</span>
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ background: riskColor[item.level] }}
-                />
-              </div>
-              <p className="mt-1 font-serif text-xl font-bold tabular text-ink">
-                {item.count}
-                <span className="ml-1 text-xs font-normal text-ink-muted">
-                  ({Math.round((item.count / total) * 100)}%)
-                </span>
-              </p>
-            </div>
-          ))}
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5 font-mono text-xs">
+          <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#C7473B]" /><span>Critical: {counts.critical}</span></div>
+          <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#E58A38]" /><span>High: {counts.high}</span></div>
+          <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#E6B83F]" /><span>Moderate: {counts.moderate}</span></div>
+          <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#3B8B61]" /><span>Low: {counts.low}</span></div>
+          <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#252923]" /><span>Other: {counts.insufficient_data}</span></div>
         </div>
-      </Card>
+      </div>
 
-      {/* ── Locations Requiring Attention + Drill-down Panel ─── */}
-      <div className="grid gap-6 lg:grid-cols-12">
-        {/* Table: Locations (7 cols) */}
-        <Card tone="default" className="lg:col-span-7" padded={false}>
-          <div className="border-b border-line p-5">
-            <h3 className="font-serif text-base font-semibold text-ink">
-              {t("officer.locationsTitle")}
-            </h3>
-            <p className="mt-0.5 text-xs text-ink-muted">
-              {t("officerDashboard.inspectInstructions")}
-            </p>
+      {/* ── 2-Column Split: Taluka Table (Left 7 cols) & Live Inspector (Right 5 cols) ── */}
+      <div className="grid gap-6 lg:grid-cols-12 items-start">
+        
+        {/* Taluka Table */}
+        <div className="lg:col-span-7 rounded-xl border-2 border-[#123C32] bg-white shadow-[4px_4px_0px_#123C32] overflow-hidden">
+          <div className="flex items-center justify-between border-b-2 border-[#123C32]/15 bg-[#F4F0E5] px-4 py-3">
+            <span className="font-mono text-xs font-bold uppercase tracking-wider text-[#123C32]">
+              Talukas Requiring Intervention
+            </span>
+            <span className="font-mono text-xs text-[#252923]/60">Click row to inspect</span>
           </div>
 
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("common.location")}</TableHead>
-                  <TableHead>{t("common.risk")}</TableHead>
-                  <TableHead className="text-right">{t("climatePage.drySpellRisk")}</TableHead>
-                  <TableHead className="text-right">{t("climatePage.heavyRainRisk")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fallbackLocations.map((loc) => {
-                  const b = getBlock(loc.blockId);
-                  if (!b) return null;
-                  const isSelected = b.id === inspectId;
+          <div className="max-h-[500px] overflow-y-auto">
+            <table className="w-full border-collapse text-left font-sans text-xs">
+              <thead>
+                <tr className="border-b-2 border-[#123C32]/15 bg-white font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/70">
+                  <th className="p-3">Block / Taluka</th>
+                  <th className="p-3">District</th>
+                  <th className="p-3">Status</th>
+                  <th className="p-3">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#123C32]/10">
+                {sortedItems.map((b) => {
+                  const isInspected = b.block_id === inspectId;
                   return (
-                    <TableRow
-                      key={loc.blockId}
-                      onClick={() => setInspectId(b.id)}
-                      className={`cursor-pointer transition-colors ${
-                        isSelected ? "bg-forest-soft/40 font-semibold" : "hover:bg-paper-deep"
+                    <tr
+                      key={b.block_id}
+                      onClick={() => setInspectId(b.block_id)}
+                      className={`cursor-pointer transition ${
+                        isInspected
+                          ? "bg-[#123C32]/10 font-semibold"
+                          : "hover:bg-[#F4F0E5]"
                       }`}
                     >
-                      <TableCell>
-                        <div>
-                          <p className="text-sm font-semibold text-ink">
-                            {pickName(b, language)}
-                          </p>
-                          <p className="text-xs text-ink-muted">
-                            {loc.districtName}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <RiskBadge risk={loc.risk} size="sm" />
-                      </TableCell>
-                      <TableCell className="text-right tabular text-sm">
-                        {b.drySpellProbability}%
-                      </TableCell>
-                      <TableCell className="text-right tabular text-sm">
-                        {b.heavyRainProbability}%
-                      </TableCell>
-                    </TableRow>
+                      <td className="p-3 font-display font-bold text-[#252923]">
+                        {language === "mr" ? b.block_name_mr : b.block_name}
+                      </td>
+                      <td className="p-3 font-mono text-[#252923]/70">{b.district_name}</td>
+                      <td className="p-3">
+                        <RiskBadge risk={b.overall_risk ?? "insufficient_data"} size="sm" />
+                      </td>
+                      <td className="p-3 font-mono text-[11px] text-[#123C32] underline">
+                        Inspect
+                      </td>
+                    </tr>
                   );
                 })}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           </div>
-        </Card>
+        </div>
 
-        {/* Drill-down Inspector Panel (5 cols) */}
-        <Card tone="muted" className="lg:col-span-5 flex flex-col justify-between">
-          {inspectBlock && inspectForecast ? (
+        {/* Live Inspector Panel */}
+        <div className="lg:col-span-5 rounded-xl border-3 border-[#123C32] bg-white p-6 shadow-[6px_6px_0px_#123C32] space-y-4">
+          <div className="flex items-center justify-between border-b-2 border-[#123C32]/15 pb-3">
             <div>
-              <div className="flex items-center justify-between border-b border-line pb-3">
-                <div>
-                  <p className="text-xs font-semibold text-ink-muted uppercase">
-                    {inspectDistrict ? pickName(inspectDistrict, language) : ""}
-                  </p>
-                  <h3 className="font-serif text-lg font-bold text-ink">
-                    {pickName(inspectBlock, language)}
-                  </h3>
-                </div>
-                <RiskBadge risk={inspectBlock.risk} size="md" />
-              </div>
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/60">
+                Taluka Inspector
+              </span>
+              <h3 className="font-display text-xl font-black text-[#123C32]">
+                {inspectedItem ? (language === "mr" ? inspectedItem.block_name_mr : inspectedItem.block_name) : "Select a Block"}
+              </h3>
+              <p className="font-mono text-xs text-[#252923]/60">{inspectedItem?.district_name} District</p>
+            </div>
+            {inspectLoading && <RefreshCw size={14} className="animate-spin text-[#123C32]" />}
+          </div>
 
-              {/* Climate summary */}
-              <div className="mt-4 grid grid-cols-2 gap-2 text-center text-xs">
-                <div className="rounded border border-line bg-surface p-2">
-                  <p className="text-ink-muted">{t("climatePage.onsetProbability")}</p>
-                  <p className="font-serif text-base font-bold text-ink tabular">
-                    {inspectForecast.monsoonOnsetProbability}%
-                  </p>
-                </div>
-                <div className="rounded border border-line bg-surface p-2">
-                  <p className="text-ink-muted">{t("climatePage.drySpellRisk")}</p>
-                  <p className="font-serif text-base font-bold text-ink tabular">
-                    {inspectForecast.drySpellProbability}%
-                  </p>
+          {inspectedItem && (
+            <div className="space-y-4">
+              <div>
+                <span className="font-mono text-[10px] uppercase text-[#252923]/60">Assessed Risk Tier:</span>
+                <div className="mt-1">
+                  <RiskBadge risk={inspectedItem.overall_risk ?? "insufficient_data"} size="md" withPrefix />
                 </div>
               </div>
 
-              {/* Agricultural Impact */}
-              <div className="mt-4 rounded-md border border-line bg-surface p-3">
-                <p className="text-xs font-bold text-ink uppercase tracking-wide">
-                  {t("riskMapPage.agriculturalImpact")}
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                  {inspectBlock.agriculturalImpact}
-                </p>
-              </div>
-
-              {/* Advisory recommendation for this block */}
-              {inspectAdvisory && (
-                <div className="mt-3 rounded-md border border-forest/30 bg-forest-soft/30 p-3">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-forest uppercase tracking-wide">
-                    <Sprout size={14} aria-hidden />
-                    <span>{t("advisory.recommendedAction")}</span>
-                  </div>
-                  <p className="mt-1 text-xs font-medium text-ink">
-                    {t(
-                      `advisoryTemplates.${inspectAdvisory.concern}.${inspectAdvisory.isSowing ? "headlineSowing" : "headlineOther"}`,
-                      { crop: t("crops.soybean"), stage: t("cropStages.sowing") }
-                    )}
+              {inspectRisk && (
+                <div className="rounded-lg border-2 border-[#123C32]/20 bg-[#F4F0E5] p-3.5 space-y-2 font-mono text-xs text-[#252923]">
+                  <p>
+                    <span className="text-[#252923]/60">Primary Driver:</span>{" "}
+                    <strong>{inspectRisk.risk_drivers?.[0]?.name?.toUpperCase() || "MONITORING"}</strong>
+                  </p>
+                  <p>
+                    <span className="text-[#252923]/60">Confidence:</span>{" "}
+                    <strong>{inspectRisk.confidence.toUpperCase()}</strong>
+                  </p>
+                  <p>
+                    <span className="text-[#252923]/60">Evaluation Cycle:</span>{" "}
+                    <strong>{inspectRisk.assessment_time}</strong>
                   </p>
                 </div>
               )}
 
-              {/* Risk Drivers */}
-              <div className="mt-4">
-                <p className="text-xs font-bold text-ink uppercase tracking-wide">
-                  {t("riskMapPage.whyAtRisk")}
-                </p>
-                <ul className="mt-2 space-y-1.5 text-xs text-ink-muted">
-                  {inspectBlock.riskDrivers.map((d) => (
-                    <li key={d} className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-forest" />
-                      {t(`riskDrivers.${d}`)}
-                    </li>
-                  ))}
-                </ul>
+              <div className="pt-2">
+                <Link
+                  href={`/farmer/dashboard?block=${inspectedItem.block_id}`}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-[#123C32] bg-[#123C32] py-2.5 font-mono text-xs font-bold uppercase tracking-wider text-[#F4F0E5] shadow-[2px_2px_0px_#252923] hover:bg-[#172B4D] transition"
+                >
+                  <span>Open Farmer Cockpit</span>
+                  <ArrowRight size={13} />
+                </Link>
               </div>
             </div>
-          ) : (
-            <p className="text-xs text-ink-muted">{t("officerDashboard.selectLocationToInspect")}</p>
           )}
+        </div>
 
-          <div className="mt-6 border-t border-line pt-3">
-            <ButtonLink
-              href={`/officer/risk-map`}
-              variant="secondary"
-              size="sm"
-              className="w-full"
-            >
-              {t("officerDashboard.viewOnRiskMap")}
-              <ArrowRight size={14} aria-hidden />
-            </ButtonLink>
-          </div>
-        </Card>
       </div>
 
-      {/* ── Regional Crop Exposure & Alerts ─────────────────── */}
-      <div className="grid gap-6 lg:grid-cols-12">
-        {/* Crop exposure table (7 cols) */}
-        <Card tone="default" className="lg:col-span-7" padded={false}>
-          <div className="border-b border-line p-5">
-            <h3 className="font-serif text-base font-semibold text-ink">
-              {t("officer.cropExposureTitle")}
-            </h3>
-            <p className="mt-0.5 text-xs text-ink-muted">
-              {t("officerDashboard.cropExposureDesc")}
-            </p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("common.crop")}</TableHead>
-                  <TableHead className="text-right">{t("officer.exposedBlocks")}</TableHead>
-                  <TableHead>{t("officer.riskWeighted")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cropExposure.map((ce) => (
-                  <TableRow key={ce.cropKey}>
-                    <TableCell className="font-semibold text-ink">
-                      {t(ce.cropKey)}
-                    </TableCell>
-                    <TableCell className="text-right tabular">
-                      {ce.exposedBlocks} {t("officerDashboard.blocks")}
-                    </TableCell>
-                    <TableCell>
-                      <RiskBadge risk={ce.riskWeighted} size="sm" />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
-
-        {/* Regional Alert Feed (5 cols) */}
-        <Card tone="default" className="lg:col-span-5">
-          <CardHeader
-            icon={ShieldAlert}
-            title={t("officerDashboard.alertsTitle")}
-            description={t("officerDashboard.regionalAlertsDesc")}
-          />
-          <ul className="mt-4 space-y-2.5">
-            {alerts.slice(0, 4).map((al) => {
-              const b = getBlock(al.blockId);
-              const locName = b ? pickName(b, language) : al.blockId;
-              return (
-                <AlertListItem
-                  key={al.id}
-                  severity={al.severity}
-                  title={t(al.titleKey)}
-                  location={locName}
-                  time={`${al.timeAgoHours}h ago`}
-                />
-              );
-            })}
-          </ul>
-        </Card>
-      </div>
     </div>
   );
 }

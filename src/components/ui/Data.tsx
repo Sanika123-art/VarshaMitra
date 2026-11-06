@@ -151,6 +151,7 @@ const alertAccent: Record<RiskLevel, { border: string; bg: string; text: string;
   high: { border: "border-l-risk-high", bg: "bg-risk-high-soft/60", text: "text-risk-high-ink", icon: TriangleAlert },
   moderate: { border: "border-l-risk-moderate", bg: "bg-risk-moderate-soft/60", text: "text-risk-moderate-ink", icon: CircleAlert },
   low: { border: "border-l-risk-low", bg: "bg-risk-low-soft/60", text: "text-risk-low-ink", icon: CircleCheck },
+  insufficient_data: { border: "border-l-slate-400", bg: "bg-slate-100/60 dark:bg-slate-800/60", text: "text-slate-600 dark:text-slate-400", icon: CircleAlert },
 };
 
 export function AlertListItem({

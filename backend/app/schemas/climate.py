@@ -4,7 +4,24 @@ from datetime import date as dt_date, datetime as dt_datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
-from app.schemas.rainfall import QualityStatus
+from app.schemas.rainfall import DataType, QualityStatus
+
+
+class DataProvenance(BaseModel):
+    """Where the rainfall behind a calculation came from, and what kind of data it is."""
+    model_config = ConfigDict(extra="forbid")
+
+    data_type: DataType = Field(..., description="observation | reanalysis | model_analysis | forecast | synthetic_test")
+    provider_id: str = Field(..., description="Provider key, e.g. 'open-meteo'")
+    provider_name: str = Field(..., description="Provider display name")
+    dataset_name: str = Field(..., description="Specific product")
+    attribution: str = Field(..., description="Required attribution text")
+    spatial_resolution: str = Field(..., description="Grid resolution of the source")
+    retrieved_at: dt_datetime = Field(..., description="UTC time the source data was retrieved")
+    window_start: dt_date = Field(..., description="First day of the data used")
+    window_end: dt_date = Field(..., description="Last day of the data used")
+    is_station_observation: bool = Field(..., description="True only for gauge/AWS observations")
+    note: str = Field(..., description="Plain-language caveat about this data type")
 
 
 class RiskLevel(str, Enum):
@@ -104,6 +121,7 @@ class ClimateIndicatorsResponse(BaseModel):
     data_quality: DataQualitySummary = Field(..., description="Data completeness and reliability summary")
     method_version: str = Field(..., description="Deterministic indicator calculation engine version")
     retrieved_at: dt_datetime = Field(..., description="UTC timestamp of computation")
+    data_provenance: Optional[DataProvenance] = Field(None, description="Source and data-type of the rainfall used")
 
 
 class RiskDriver(BaseModel):
@@ -136,6 +154,15 @@ class RiskAssessmentResponse(BaseModel):
     method_version: str = Field(..., description="Algorithm version identifier")
     provisional_notice: str = Field(..., description="Explicit notice on heuristic nature and requirement of expert review")
     limitations: str = Field(..., description="Transparent data limitations statement")
+    data_provenance: Optional[DataProvenance] = Field(None, description="Source and data-type of the rainfall used")
+    season_note: Optional[str] = Field(
+        None,
+        description="Set when the window lies outside the June-September monsoon; dry-spell and deficit rules are not applied then",
+    )
+    in_monsoon_season: bool = Field(
+        True,
+        description="True when the window ends in June-September. Dry-spell/deficit rules only escalate risk in-season.",
+    )
 
 
 class MLBoundarySpecification(BaseModel):
@@ -149,3 +176,48 @@ class MLBoundarySpecification(BaseModel):
     data_requirements: Dict[str, str] = Field(..., description="Curated historical data prerequisites")
     evaluation_protocol: Dict[str, str] = Field(..., description="Temporal split and baseline comparison metrics")
     no_fabricated_metrics_notice: str = Field(..., description="Confirmation that no placeholder accuracy metrics are published")
+
+
+class RiskSummaryItem(BaseModel):
+    """One block in the map overview. Fields are null when the block's data was unavailable."""
+    model_config = ConfigDict(extra="forbid")
+
+    block_id: str
+    block_name: str
+    block_name_mr: str
+    district_id: str
+    district_name: str
+    latitude: float
+    longitude: float
+    status: str = Field(..., description="ok | unavailable")
+    error: Optional[str] = Field(None, description="Safe, user-presentable reason when status is 'unavailable'")
+    overall_risk: Optional[RiskLevel] = None
+    confidence: Optional[ConfidenceLevel] = None
+    dry_spell_severity: Optional[str] = Field(None, description="none | mild | significant | critical (indicator engine)")
+    current_dry_days: Optional[int] = None
+    heavy_rain_event: Optional[bool] = None
+    max_single_day_mm: Optional[float] = None
+    accumulation_mm: Optional[float] = None
+    monsoon_onset_status: Optional[str] = None
+    in_monsoon_season: Optional[bool] = Field(None, description="True when the window ends in June-September")
+    coverage_ratio: Optional[float] = None
+    window_start: Optional[dt_date] = None
+    window_end: Optional[dt_date] = None
+
+
+class RiskSummaryResponse(BaseModel):
+    """Backend-derived risk overview for every curated block (drives the map)."""
+    model_config = ConfigDict(extra="forbid")
+
+    generated_at: dt_datetime = Field(..., description="UTC time this summary was computed")
+    cached: bool = Field(..., description="True when served from the short-lived in-memory cache")
+    cache_age_seconds: int = Field(..., description="Seconds since computation")
+    window_days: int
+    provider: str
+    count: int = Field(..., description="Blocks in the curated dataset")
+    available_count: int = Field(..., description="Blocks whose risk could be computed")
+    items: List[RiskSummaryItem]
+    coordinates_note: str = Field(..., description="Marker geometry caveat")
+    method_version: str
+    data_provenance: Optional[DataProvenance] = None
+    provisional_notice: str

@@ -1,16 +1,22 @@
 """Application configuration management using Pydantic Settings."""
 
 import json
+from pathlib import Path
 from typing import List, Union
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Resolve backend/.env independent of the process working directory
+# (the app may be launched from backend/ or from the repository root).
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+ENV_FILE = BACKEND_DIR / ".env"
 
 
 class Settings(BaseSettings):
     """Application runtime settings loaded from environment or defaults."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=True,
@@ -43,6 +49,16 @@ class Settings(BaseSettings):
 
     # Logging
     LOG_LEVEL: str = Field(default="INFO", description="Logging verbosity level")
+
+    # Optional external meteorological providers (credentials never leave the backend)
+    IMD_API_KEY: Union[str, None] = Field(default=None, description="Institutional IMD gateway API key")
+    IMD_API_BASE_URL: str = Field(default="https://api.imd.gov.in", description="IMD gateway base URL")
+    CDSAPI_KEY: Union[str, None] = Field(default=None, description="Copernicus CDS personal access token")
+    CDSAPI_URL: str = Field(default="https://cds.climate.copernicus.eu/api", description="Copernicus CDS API URL")
+
+    # Map overview (bulk risk) tuning
+    RISK_SUMMARY_CACHE_TTL_SECONDS: int = Field(default=900, description="In-memory cache lifetime for the bulk risk summary")
+    RISK_SUMMARY_CONCURRENCY: int = Field(default=8, description="Max concurrent upstream weather requests for the bulk summary")
 
     # NuGen LLM Explanation Integration
     NUGEN_ENABLED: bool = Field(default=False, description="Enable NuGen LLM explanation integration")

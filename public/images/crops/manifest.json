@@ -1,0 +1,182 @@
+{
+  "soybean": {
+    "file": "/images/crops/soybean.jpg",
+    "title": "File:Gousses de soja à St-Pierre-d'Albigny en Savoie (septembre 2025).JPG",
+    "author": "Florian Pépellin",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Gousses_de_soja_%C3%A0_St-Pierre-d%27Albigny_en_Savoie_(septembre_2025).JPG",
+    "size_kb": 170.5
+  },
+  "cotton": {
+    "file": "/images/crops/cotton.jpg",
+    "title": "File:Cotton Plant AK Pop. 960.jpg",
+    "author": "Luke",
+    "license": "CC BY-SA 2.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Cotton_Plant_AK_Pop._960.jpg",
+    "size_kb": 154.2
+  },
+  "pearl_millet": {
+    "file": "/images/crops/pearl_millet.jpg",
+    "title": "File:2013.02-402-294a Pearl millet,breeding,selfing ICRISAT,Patancheru(Hyderabad,Andhra Pradesh),IN wed20feb2013.jpg",
+    "author": "Rik Schuiling / TropCrop - TCS",
+    "license": "CC BY-SA 3.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:2013.02-402-294a_Pearl_millet,breeding,selfing_ICRISAT,Patancheru(Hyderabad,Andhra_Pradesh),IN_wed20feb2013.jpg",
+    "size_kb": 214.9
+  },
+  "rice": {
+    "file": "/images/crops/rice.jpg",
+    "title": "File:Ripening rice plants in paddy field, Indonesia.jpg",
+    "author": "Undeka 11",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Ripening_rice_plants_in_paddy_field,_Indonesia.jpg",
+    "size_kb": 303.4
+  },
+  "wheat": {
+    "file": "/images/crops/wheat.jpg",
+    "title": "File:The combine Claas Lexion 584 in the wheat harvest.jpg",
+    "author": "Michael Gäbler",
+    "license": "CC BY-SA 3.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:The_combine_Claas_Lexion_584_in_the_wheat_harvest.jpg",
+    "size_kb": 170.3
+  },
+  "maize": {
+    "file": "/images/crops/maize.jpg",
+    "title": "File:Dent Corn 'Oaxacan Green' (Zea mays) MHNT 2.jpg",
+    "author": "Didier Descouens",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Dent_Corn_%27Oaxacan_Green%27_(Zea_mays)_MHNT_2.jpg",
+    "size_kb": 112.3
+  },
+  "finger_millet": {
+    "file": "/images/crops/finger_millet.jpg",
+    "title": "File:Polyculture.JPG",
+    "author": "Carla Antonini",
+    "license": "CC BY-SA 3.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Polyculture.JPG",
+    "size_kb": 264.1
+  },
+  "chickpea": {
+    "file": "/images/crops/chickpea.jpg",
+    "title": "File:CSIRO ScienceImage 3025 Chickpeas in glasshouse.jpg",
+    "author": "Carl Davies, CSIRO",
+    "license": "CC BY 3.0",
+    "license_url": "https://creativecommons.org/licenses/by/3.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:CSIRO_ScienceImage_3025_Chickpeas_in_glasshouse.jpg",
+    "size_kb": 106.8
+  },
+  "green_gram": {
+    "file": "/images/crops/green_gram.jpg",
+    "title": "File:Everything for the garden (16390907195).jpg",
+    "author": "Henry G. Gilbert Nursery and Seed Trade Catalog Collection.; Peter Henderson &amp; Co.",
+    "license": "Public domain",
+    "license_url": "",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Everything_for_the_garden_(16390907195).jpg",
+    "size_kb": 253.6
+  },
+  "black_gram": {
+    "file": "/images/crops/black_gram.jpg",
+    "title": "File:Everything for the garden (16390907195).jpg",
+    "author": "Henry G. Gilbert Nursery and Seed Trade Catalog Collection.; Peter Henderson &amp; Co.",
+    "license": "Public domain",
+    "license_url": "",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Everything_for_the_garden_(16390907195).jpg",
+    "size_kb": 253.6
+  },
+  "groundnut": {
+    "file": "/images/crops/groundnut.jpg",
+    "title": "File:Arachis hypogaea - Köhler–s Medizinal-Pflanzen-163.jpg",
+    "author": "Franz Eugen Köhler, Köhler's Medizinal-Pflanzen",
+    "license": "Public domain",
+    "license_url": "",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Arachis_hypogaea_-_K%C3%B6hler%E2%80%93s_Medizinal-Pflanzen-163.jpg",
+    "size_kb": 196.8
+  },
+  "sunflower": {
+    "file": "/images/crops/sunflower.jpg",
+    "title": "File:Girasol (7072217699).jpg",
+    "author": "jacilluch",
+    "license": "CC BY-SA 2.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Girasol_(7072217699).jpg",
+    "size_kb": 97.5
+  },
+  "sesame": {
+    "file": "/images/crops/sesame.jpg",
+    "title": "File:Harvest (20201029-NRCS-LSC-0318).jpg",
+    "author": "USDAgov",
+    "license": "Public domain",
+    "license_url": "",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Harvest_(20201029-NRCS-LSC-0318).jpg",
+    "size_kb": 57.8
+  },
+  "safflower": {
+    "file": "/images/crops/safflower.jpg",
+    "title": "File:CSIRO ScienceImage 10707 Safflower plant.jpg",
+    "author": "Carl Davies, CSIRO",
+    "license": "CC BY 3.0",
+    "license_url": "https://creativecommons.org/licenses/by/3.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:CSIRO_ScienceImage_10707_Safflower_plant.jpg",
+    "size_kb": 63.2
+  },
+  "tomato": {
+    "file": "/images/crops/tomato.jpg",
+    "title": "File:-2019-07-20 Un-Ripe fruit on variety 'Sub Arctic Plenty' Tomato Plants, Trimingham.JPG",
+    "author": "Kolforn (Kolforn)\nI'd appreciate if you could mail me (Kolforn@gmail.com) if you want to use this picture out of the Wikimedia project scope.\n\n\n\n This file is licensed under the Creative Commons Attribution-Share Alike 4.0 International license.\nYou are free:\nto share – to copy, distribute and transmit the work\nto remix – to adapt the work\nUnder the following conditions:\nattribution – You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.\nshare alike – If you remix, transform, or build upon the material, you must distribute your contributions under the same or compatible license as the original.https://creativecommons.org/licenses/by-sa/4.0CC BY-SA 4.0 Creative Commons Attribution-Share Alike 4.0 truetrue",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:-2019-07-20_Un-Ripe_fruit_on_variety_%27Sub_Arctic_Plenty%27_Tomato_Plants,_Trimingham.JPG",
+    "size_kb": 143.0
+  },
+  "chilli": {
+    "file": "/images/crops/chilli.jpg",
+    "title": "File:Field visit chilli crop.JPG",
+    "author": "Ssmmgbsanskriti",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Field_visit_chilli_crop.JPG",
+    "size_kb": 293.5
+  },
+  "potato": {
+    "file": "/images/crops/potato.jpg",
+    "title": "File:A newly-planted potato crop - geograph.org.uk - 7760244.jpg",
+    "author": "Jonathan Billinger",
+    "license": "CC BY-SA 2.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:A_newly-planted_potato_crop_-_geograph.org.uk_-_7760244.jpg",
+    "size_kb": 276.5
+  },
+  "sugarcane": {
+    "file": "/images/crops/sugarcane.jpg",
+    "title": "File:PLANTING SUGARCANE, THE ISLAND'S CHIEF CROP. FIELD WORKERS ARE NOW MOSTLY FILIPINOS - NARA - 554047.jpg",
+    "author": "Charles O'Rear",
+    "license": "Public domain",
+    "license_url": "",
+    "source_url": "https://commons.wikimedia.org/wiki/File:PLANTING_SUGARCANE,_THE_ISLAND%27S_CHIEF_CROP._FIELD_WORKERS_ARE_NOW_MOSTLY_FILIPINOS_-_NARA_-_554047.jpg",
+    "size_kb": 75.1
+  },
+  "pomegranate": {
+    "file": "/images/crops/pomegranate.jpg",
+    "title": "File:Cracked pomegranate on a tree.jpg",
+    "author": "DGtal",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Cracked_pomegranate_on_a_tree.jpg",
+    "size_kb": 134.5
+  },
+  "banana": {
+    "file": "/images/crops/banana.jpg",
+    "title": "File:Backyard Banana planting among the Luhya people of Western Kenya.jpg",
+    "author": "Cynthia Doresi",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Backyard_Banana_planting_among_the_Luhya_people_of_Western_Kenya.jpg",
+    "size_kb": 192.9
+  }
+}

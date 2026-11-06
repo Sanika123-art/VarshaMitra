@@ -112,6 +112,7 @@ export function InlineAlert({
   return (
     <div
       role={variant === "danger" || variant === "warning" ? "alert" : "status"}
+      aria-live={variant === "danger" ? "assertive" : "polite"}
       className={cn("flex gap-3 rounded-lg border px-4 py-3 text-sm", box, className)}
     >
       <Icon size={18} className="mt-0.5 shrink-0" aria-hidden />
@@ -122,3 +123,95 @@ export function InlineAlert({
     </div>
   );
 }
+
+export function ApiUnavailableState({
+  serviceName = "VarshaMitra API",
+  error,
+  onRetry,
+  className,
+}: {
+  serviceName?: string;
+  error?: string;
+  onRetry?: () => void;
+  className?: string;
+}) {
+  return (
+    <div
+      role="alert"
+      aria-live="assertive"
+      className={cn(
+        "flex flex-col items-center rounded-lg border border-amber-500/40 bg-amber-500/10 px-6 py-8 text-center text-ink",
+        className
+      )}
+    >
+      <OctagonAlert className="text-amber-600 dark:text-amber-400" size={28} aria-hidden />
+      <h3 className="mt-3 font-sans text-base font-semibold">
+        {serviceName} Service Unavailable
+      </h3>
+      <p className="mt-1 max-w-md text-sm text-ink-muted">
+        {error || "Unable to retrieve live data from the backend. The service may be offline or initializing."}
+      </p>
+      {onRetry && (
+        <Button variant="secondary" size="sm" className="mt-4" onClick={onRetry}>
+          Retry Connection
+        </Button>
+      )}
+    </div>
+  );
+}
+
+export function StaleDataBanner({
+  timestamp,
+  sourceName,
+  className,
+}: {
+  timestamp?: string;
+  sourceName?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={cn(
+        "flex items-center gap-2 rounded border border-amber-400/40 bg-amber-50/70 dark:bg-amber-950/30 px-3 py-1.5 text-xs text-amber-900 dark:text-amber-200",
+        className
+      )}
+    >
+      <Info size={14} className="shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+      <span>
+        Cached/Past assessment{timestamp ? ` (${new Date(timestamp).toLocaleDateString()})` : ""}.
+        {sourceName ? ` Source: ${sourceName}.` : ""}
+      </span>
+    </div>
+  );
+}
+
+export function PartialDataNotice({
+  coverageRatio,
+  missingDays,
+  className,
+}: {
+  coverageRatio?: number;
+  missingDays?: number;
+  className?: string;
+}) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={cn(
+        "flex items-center gap-2 rounded border border-blue-400/30 bg-blue-50/70 dark:bg-blue-950/30 px-3 py-1.5 text-xs text-blue-900 dark:text-blue-200",
+        className
+      )}
+    >
+      <Info size={14} className="shrink-0 text-blue-600 dark:text-blue-400" aria-hidden />
+      <span>
+        Partial observation coverage
+        {typeof coverageRatio === "number" ? ` (${Math.round(coverageRatio * 100)}% complete)` : ""}.
+        {typeof missingDays === "number" && missingDays > 0 ? ` ${missingDays} day(s) missing from window.` : ""}
+      </span>
+    </div>
+  );
+}
+

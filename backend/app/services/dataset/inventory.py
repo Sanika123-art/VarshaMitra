@@ -21,6 +21,7 @@ def get_source_inventory() -> List[SourceInventoryItem]:
             authentication="Institutional API Key required ('x-api-key' header)",
             current_reachability="configuration_required",
             integration_role="Primary official ground truth for Indian meteorological observations and baseline verification.",
+            integration_status="implemented_unverified",
         ),
         SourceInventoryItem(
             source_id="nwdp-imd-daily",
@@ -36,6 +37,7 @@ def get_source_inventory() -> List[SourceInventoryItem]:
             authentication="Open data portal registration and batch download catalog",
             current_reachability="reference_catalog",
             integration_role="30-year climatological normal calibration and long-term rainfall anomaly benchmarks.",
+            integration_status="reference_only",
         ),
         SourceInventoryItem(
             source_id="copernicus-era5-land",
@@ -51,6 +53,7 @@ def get_source_inventory() -> List[SourceInventoryItem]:
             authentication="Copernicus Climate Data Store (CDS) API key ('~/.cdsapirc')",
             current_reachability="reference_catalog",
             integration_role="Authoritative historical land-surface reanalysis for antecedent soil water and precipitation.",
+            integration_status="not_implemented",
         ),
         SourceInventoryItem(
             source_id="open-meteo-archive",
@@ -66,6 +69,7 @@ def get_source_inventory() -> List[SourceInventoryItem]:
             authentication="Open access (no API key required for standard non-commercial rate limits)",
             current_reachability="operational",
             integration_role="Production data source for historical climate indicator calculation and local dataset ingestion.",
+            integration_status="implemented",
         ),
         SourceInventoryItem(
             source_id="open-meteo-forecast",
@@ -80,7 +84,12 @@ def get_source_inventory() -> List[SourceInventoryItem]:
             licensing="Creative Commons Attribution 4.0 International (CC BY 4.0)",
             authentication="Open access (attribution required)",
             current_reachability="operational",
-            integration_role="Candidate future weather forecast guidance; separated strictly from historical observations.",
+            integration_role=(
+                "Implemented: 1-16 day forecast endpoint, and the recent-past model-analysis window "
+                "(data_type=model_analysis) that feeds climate indicators and the risk engine. "
+                "Forecast and analysis values are never merged with reanalysis or gauge observations."
+            ),
+            integration_status="implemented",
         ),
         SourceInventoryItem(
             source_id="nasa-gpm-imerg",
@@ -96,6 +105,7 @@ def get_source_inventory() -> List[SourceInventoryItem]:
             authentication="Free NASA Earthdata Login account",
             current_reachability="reference_catalog",
             integration_role="Supplementary remote-sensing precipitation cross-validation for high-spatial-variance tracts.",
+            integration_status="reference_only",
         ),
         SourceInventoryItem(
             source_id="isric-soilgrids",
@@ -111,6 +121,7 @@ def get_source_inventory() -> List[SourceInventoryItem]:
             authentication="Open access via Web Coverage Service (WCS) and direct Cloud-Optimized GeoTIFF",
             current_reachability="reference_catalog",
             integration_role="Static soil texture (clay, silt, sand) and available water capacity (AWC) for moisture stress scoring.",
+            integration_status="reference_only",
         ),
         SourceInventoryItem(
             source_id="nwic-district-boundaries",
@@ -126,5 +137,6 @@ def get_source_inventory() -> List[SourceInventoryItem]:
             authentication="Open download from NWDP portal",
             current_reachability="reference_catalog",
             integration_role="Cadastral polygon boundaries to replace centroid coordinates on interactive risk maps.",
+            integration_status="reference_only",
         ),
     ]

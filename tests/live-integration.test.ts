@@ -98,4 +98,50 @@ describe("Phase 6 End-to-End Live Integration Verification", () => {
     assert.ok(typeof summary.total_records === "number");
     assert.ok(typeof summary.valid_records === "number");
   });
+
+  test("12. Risk Summary API returns all curated Maharashtra blocks with live risk ratings", async () => {
+    const summary = await api.getRiskSummary(14);
+    assert.ok(summary.count > 0, "Summary count must be positive");
+    assert.strictEqual(summary.items.length, summary.count);
+    assert.ok(summary.available_count > 0, "Available block count must be positive");
+    assert.ok(summary.coordinates_note.length > 0);
+    assert.ok(Array.isArray(summary.items));
+
+    const baramati = summary.items.find((i) => i.block_id === "baramati");
+    assert.ok(baramati, "Baramati must exist in risk summary");
+    assert.strictEqual(baramati.status, "ok");
+    assert.ok(["low", "moderate", "high", "critical", "insufficient_data"].includes(baramati.overall_risk ?? ""));
+    assert.ok(typeof baramati.latitude === "number");
+    assert.ok(typeof baramati.longitude === "number");
+  });
+
+  test("13. Saarthi Chatbot API supports conversation creation, persistent message exchange and history", async () => {
+    // Create consultation
+    const conv = await api.createChatConversation({
+      locationId: "baramati",
+      cropId: "soybean",
+      language: "en",
+    });
+    assert.ok(conv.id.startsWith("conv_"));
+
+    // Send question
+    const reply = await api.sendChatMessage(conv.id, "Will it rain this week?", {
+      locationId: "baramati",
+      cropId: "soybean",
+      language: "en",
+    });
+    assert.strictEqual(reply.role, "assistant");
+    assert.ok(reply.content.length > 20);
+    assert.ok(reply.provider_status === "nugen" || reply.provider_status === "engine_fallback");
+
+    // Fetch conversation detail to verify SQLite persistence
+    const detail = await api.getChatConversation(conv.id);
+    assert.strictEqual(detail.id, conv.id);
+    assert.strictEqual(detail.message_count, 2);
+    assert.strictEqual(detail.messages[0].role, "user");
+    assert.strictEqual(detail.messages[1].role, "assistant");
+
+    // Cleanup
+    await api.deleteChatConversation(conv.id);
+  });
 });

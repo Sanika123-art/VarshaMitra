@@ -16,10 +16,10 @@ SPECIFICATION & INTEGRATION REQUIREMENTS:
 """
 
 from datetime import date, datetime, timezone
-import os
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException, status
 
+from app.core.config import settings
 from app.core.logging import logger
 from app.schemas.location import BlockDetail
 from app.schemas.rainfall import (
@@ -41,8 +41,8 @@ class CopernicusERA5LandProvider(RainfallProvider):
         api_url: Optional[str] = None,
         api_key: Optional[str] = None,
     ) -> None:
-        self._api_url = api_url or os.getenv("CDSAPI_URL", "https://cds.climate.copernicus.eu/api")
-        self._api_key = api_key or os.getenv("CDSAPI_KEY")
+        self._api_url = api_url or settings.CDSAPI_URL
+        self._api_key = api_key or settings.CDSAPI_KEY
 
     @property
     def provider_id(self) -> str:
@@ -74,18 +74,23 @@ class CopernicusERA5LandProvider(RainfallProvider):
                 required_credentials=["CDSAPI_KEY", "CDSAPI_URL"],
                 documentation_url="https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land",
                 attribution="Generated using Copernicus Climate Change Service information (2026).",
+                integration_status="not_implemented",
             )
 
         return ProviderStatusResponse(
             provider_id=self.provider_id,
             provider_name=self.provider_name,
             is_configured=True,
-            is_available=True,
-            status_code="operational",
-            status_message="Copernicus CDS credentials configured.",
+            is_available=False,
+            status_code="not_implemented",
+            status_message=(
+                "CDS credentials are present, but direct CDS NetCDF retrieval is not implemented in this "
+                "service (requests return HTTP 501). Use provider 'open-meteo-archive' for ERA5-Land reanalysis."
+            ),
             required_credentials=["CDSAPI_KEY", "CDSAPI_URL"],
             documentation_url="https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land",
             attribution="Generated using Copernicus Climate Change Service information (2026).",
+            integration_status="not_implemented",
         )
 
     def normalize_era5_native_records(
@@ -188,6 +193,7 @@ class CopernicusERA5LandProvider(RainfallProvider):
         self,
         block: BlockDetail,
         days: int = 7,
+        client: Optional[object] = None,
     ) -> RainfallObservationSeries:
         """Fetch observations from Copernicus CDS direct API."""
         if not self.is_configured:

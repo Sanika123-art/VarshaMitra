@@ -7,6 +7,7 @@ Can be executed as an async service or standalone CLI command.
 import argparse
 import asyncio
 from datetime import date, datetime, timezone
+import os
 import sys
 from typing import Optional
 
@@ -44,12 +45,18 @@ async def ingest_historical_data(
         f"Starting historical ingestion for {block.name} ({block.district_name}) from {start_date} to {end_date} via {provider_key}"
     )
 
-    if isinstance(provider, OpenMeteoArchiveProvider):
-        series = await provider.get_historical_range(block, start_date, end_date)
-    else:
-        # Fallback for standard provider
-        days = (end_date - start_date).days + 1
-        series = await provider.get_recent_observations(block, days=days)
+    if not isinstance(provider, OpenMeteoArchiveProvider):
+        # Other providers only expose a 'recent N days' window. Using them here would store recent
+        # values under the requested historical dates, which would silently corrupt the dataset.
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Provider '{provider_key}' does not support historical date-range ingestion. "
+                "Use provider 'open-meteo-archive'."
+            ),
+        )
+
+    series = await provider.get_historical_range(block, start_date, end_date)
 
     records = [
         HistoricalRainfallRecord(
@@ -81,7 +88,7 @@ async def ingest_historical_data(
         missing_days_count=missing,
         data_type=records[0].data_type if records else DataType.REANALYSIS,
         source_provider=provider.provider_id,
-        storage_path=dataset_storage.db_path,
+        storage_path=os.path.basename(dataset_storage.db_path),
         ingestion_time=datetime.now(timezone.utc),
     )
 
@@ -91,8 +98,11 @@ async def ingest_historical_data(
     return summary
 
 
-def main():
-    """CLI runner for historical dataset ingestion."""
+def main() -> int:
+    """CLI runner for historical dataset ingestion.
+
+    Exit codes: 0 success, 1 ingestion failure (upstream/storage), 2 invalid input.
+    """
     parser = argparse.ArgumentParser(description="Ingest historical climate dataset for Maharashtra blocks.")
     parser.add_argument("--block", required=True, help="Block ID (e.g. 'baramati', 'barshi', 'karvir')")
     parser.add_argument("--start", required=True, help="Start date (YYYY-MM-DD)")
@@ -101,11 +111,26 @@ def main():
 
     args = parser.parse_args()
 
-    start_d = date.fromisoformat(args.start)
-    end_d = date.fromisoformat(args.end)
+    try:
+        start_d = date.fromisoformat(args.start)
+        end_d = date.fromisoformat(args.end)
+    except ValueError:
+        print("error: --start and --end must be valid YYYY-MM-DD dates", file=sys.stderr)
+        return 2
+    if start_d > end_d:
+        print("error: --start must be on or before --end", file=sys.stderr)
+        return 2
 
     print(f"--> Initiating ingestion for '{args.block}' from {start_d} to {end_d}...")
-    summary = asyncio.run(ingest_historical_data(args.block, start_d, end_d, args.provider))
+    try:
+        summary = asyncio.run(ingest_historical_data(args.block, start_d, end_d, args.provider))
+    except HTTPException as exc:
+        print(f"error: ingestion failed (HTTP {exc.status_code}): {exc.detail}", file=sys.stderr)
+        return 2 if exc.status_code in (400, 404, 422) else 1
+    except Exception as exc:  # database or unexpected failure
+        logger.exception("Historical ingestion failed")
+        print(f"error: ingestion failed: {type(exc).__name__}", file=sys.stderr)
+        return 1
 
     print("\n================ INGESTION SUMMARY ================")
     print(f"Location ID:       {summary.location_id}")
@@ -117,7 +142,8 @@ def main():
     print(f"Provider:          {summary.source_provider}")
     print(f"Storage File:      {summary.storage_path}")
     print("===================================================\n")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -2,38 +2,48 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, ArrowRight, ShieldCheck } from "lucide-react";
+import { X, ArrowRight, Info, ShieldCheck, Sprout, CloudRain, Sun } from "lucide-react";
 import { useTranslation } from "@/i18n/LanguageContext";
-import type { Block, RiskLevel } from "@/types";
-import { getDistrict } from "@/data/locations";
-import { getForecast } from "@/data/climate";
+import type { RiskLevel } from "@/types";
 import RiskBadge from "@/components/RiskBadge";
 import { riskLabelKey } from "@/lib/utils";
-import { api, type RiskAssessmentResponse, type ForecastSeries } from "@/lib/api";
+import { api, type RiskAssessmentResponse, type ForecastSeries, type RiskSummaryItem } from "@/lib/api";
+import { useAppState } from "@/hooks/useAppState";
 
-export default function BlockPanel({ block, onClose }: { block: Block; onClose: () => void }) {
+export default function BlockPanel({ item, onClose }: { item: RiskSummaryItem; onClose: () => void }) {
   const { t, language } = useTranslation();
-  const district = getDistrict(block.districtId);
-  const fallbackForecast = getForecast(block.id, 14);
+  const { setLocation } = useAppState();
 
   const [liveRisk, setLiveRisk] = useState<RiskAssessmentResponse | null>(null);
   const [liveForecast, setLiveForecast] = useState<ForecastSeries | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadLiveData() {
+      setLoading(true);
+      setError(null);
       try {
         const [rRes, fRes] = await Promise.allSettled([
-          api.getClimateRisk(block.id),
-          api.getForecast(block.id, 14),
+          api.getClimateRisk(item.block_id),
+          api.getForecast(item.block_id, 14),
         ]);
 
         if (cancelled) return;
-        if (rRes.status === "fulfilled") setLiveRisk(rRes.value);
-        if (fRes.status === "fulfilled") setLiveForecast(fRes.value);
+        if (rRes.status === "fulfilled") {
+          setLiveRisk(rRes.value);
+        } else {
+          setError("Detailed climate risk could not be retrieved from the backend.");
+        }
+        if (fRes.status === "fulfilled") {
+          setLiveForecast(fRes.value);
+        }
       } catch {
-        // Fallback remains active
+        if (!cancelled) setError("Network error loading block details.");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
 
@@ -41,126 +51,135 @@ export default function BlockPanel({ block, onClose }: { block: Block; onClose: 
     return () => {
       cancelled = true;
     };
-  }, [block.id]);
+  }, [item.block_id]);
 
-  const activeRisk: RiskLevel =
-    liveRisk?.overall_risk && liveRisk.overall_risk !== "insufficient_data"
-      ? liveRisk.overall_risk
-      : block.risk;
-  const onsetProb = liveRisk
-    ? Math.round((liveRisk.evidence_summary?.monsoon_onset?.onset_probability || 0.72) * 100)
-    : fallbackForecast.monsoonOnsetProbability;
-  const drySpellProb = liveRisk
-    ? Math.round((liveRisk.evidence_summary?.dry_spell?.dry_spell_probability || 0.65) * 100)
-    : fallbackForecast.drySpellProbability;
-  const heavyRainProb = liveRisk
-    ? Math.round((liveRisk.evidence_summary?.heavy_rain?.heavy_rain_probability || 0.20) * 100)
-    : fallbackForecast.heavyRainProbability;
+  const activeRisk: RiskLevel = liveRisk?.overall_risk || item.overall_risk || "insufficient_data";
+  const blockName = language === "mr" ? item.block_name_mr : item.block_name;
+
+  function selectAsFarmerLocation() {
+    setLocation({
+      stateId: "maharashtra",
+      stateName: "Maharashtra",
+      districtId: item.district_id,
+      districtName: item.district_name,
+      blockId: item.block_id,
+      blockName: item.block_name,
+      latitude: item.latitude,
+      longitude: item.longitude,
+    });
+  }
 
   return (
-    <div className="absolute inset-x-3 bottom-3 z-[500] slide-up rounded-3xl border border-[var(--color-line)] bg-[var(--color-paper)]/95 p-6 shadow-[var(--shadow-xl)] backdrop-blur-md sm:inset-auto sm:right-4 sm:top-4 sm:bottom-4 sm:w-80 sm:slide-in-right sm:overflow-y-auto">
+    <aside
+      aria-label="Location Risk Details"
+      className="absolute inset-x-0 bottom-0 z-[500] max-h-[80vh] overflow-y-auto rounded-t-2xl border-t-3 border-[#123C32] bg-[#F4F0E5] p-6 shadow-2xl backdrop-blur-md lg:inset-auto lg:right-0 lg:top-0 lg:bottom-0 lg:max-h-none lg:w-[400px] lg:rounded-none lg:border-l-3 lg:border-t-0 lg:border-[#123C32]"
+    >
+      {/* Mobile top drag handle */}
+      <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#123C32]/30 lg:hidden" />
+
       {/* Close button */}
       <button
         onClick={onClose}
-        className="absolute right-4 top-4 rounded-full p-1.5 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-paper-raised)] hover:text-[var(--color-ink)]"
+        className="absolute right-4 top-4 rounded-lg border border-[#123C32]/30 bg-white p-2 text-[#252923] hover:bg-[#123C32] hover:text-white transition"
         aria-label={t("common.close")}
       >
         <X size={16} />
       </button>
 
-      {/* Location */}
+      {/* Location header */}
       <div className="flex items-center justify-between pr-8">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink)]/45">
-          {district ? (language === "mr" ? district.nameMr : district.name) : ""}
-        </p>
-        {liveRisk && (
-          <span className="flex items-center gap-1 rounded-full bg-forest-soft px-2 py-0.5 text-[10px] font-semibold text-forest">
-            <span className="h-1.5 w-1.5 rounded-full bg-forest" />
-            Live Engine
-          </span>
-        )}
+        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/70">
+          {item.district_name} District
+        </span>
+        <span className="flex items-center gap-1 rounded border border-[#123C32] bg-white px-2 py-0.5 font-mono text-[10px] font-bold text-[#123C32]">
+          <ShieldCheck size={11} className="text-[#3B8B61]" />
+          Verified Block
+        </span>
       </div>
-      <h3 className="mt-1 font-display text-2xl text-[var(--color-ink)]">
-        {language === "mr" ? block.nameMr : block.name}
+
+      <h3 className="mt-2 font-display text-2xl font-black text-[#123C32]">
+        {blockName}
       </h3>
 
-      {/* Risk */}
-      <div className="mt-3">
-        <RiskBadge risk={activeRisk} label={t(riskLabelKey[activeRisk])} size="md" />
+      <p className="mt-1 font-mono text-xs text-[#252923]/60">
+        Centroid: {item.latitude.toFixed(3)}°N, {item.longitude.toFixed(3)}°E
+      </p>
+
+      {/* Risk Badge */}
+      <div className="mt-4">
+        <RiskBadge risk={activeRisk} label={t(riskLabelKey[activeRisk] ?? "common.insufficientData")} size="md" withPrefix />
       </div>
 
-      {/* Metrics */}
-      <div className="mt-5 grid grid-cols-3 gap-2">
-        <MiniMetric label={t("climatePage.onsetProbability")} value={`${onsetProb}%`} />
-        <MiniMetric label={t("climatePage.drySpellRisk")} value={`${drySpellProb}%`} />
-        <MiniMetric label={t("climatePage.heavyRainRisk")} value={`${heavyRainProb}%`} />
-      </div>
+      {loading && (
+        <div className="my-6 rounded-lg border-2 border-[#123C32]/20 bg-white p-4 font-mono text-xs text-[#123C32]">
+          Synchronizing block telemetry...
+        </div>
+      )}
 
-      {/* Agricultural Impact */}
-      <div className="mt-4 rounded-xl bg-[var(--color-amber)]/8 border border-[var(--color-amber)]/15 px-3 py-2 text-sm">
-        <span className="text-xs font-semibold text-[var(--color-amber)]">
-          {t("riskMapPage.agriculturalImpact")}
-        </span>
-        <p className="mt-0.5 font-medium text-[var(--color-ink)]/80">
-          {block.agriculturalImpact}
-        </p>
-      </div>
+      {error && (
+        <div className="my-4 rounded-lg border-2 border-[#C7473B] bg-white p-3 font-mono text-xs text-[#C7473B]">
+          {error}
+        </div>
+      )}
 
-      {/* Why at risk */}
-      <div className="mt-5">
-        <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-ink)]/50">
-          {t("riskMapPage.whyAtRisk")}
-        </p>
-        <ul className="mt-2.5 space-y-2">
-          {liveRisk && liveRisk.risk_drivers.length > 0
-            ? liveRisk.risk_drivers.map((driver, idx) => {
-                const driverName = driver.name || driver.driver_key || driver.code || "Risk Driver";
-                const driverSummary = driver.plain_language_summary || driver.evidence || "";
-                return (
-                  <li
-                    key={driver.code || driver.driver_key || `driver_${idx}`}
-                    className="flex items-start gap-2 text-sm leading-snug text-[var(--color-ink)]/65"
-                  >
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-clay)]" />
-                    <span>
-                      <strong className="capitalize text-ink">
-                        {driverName.replace(/_/g, " ")}:
-                      </strong>{" "}
-                      {driverSummary}
-                    </span>
-                  </li>
-                );
-              })
-            : block.riskDrivers.map((driver) => (
-                <li
-                  key={driver}
-                  className="flex items-start gap-2 text-sm leading-snug text-[var(--color-ink)]/65"
-                >
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-clay)]" />
-                  {t(`riskDrivers.${driver}`)}
-                </li>
-              ))}
-        </ul>
-      </div>
+      {/* Detailed Risk Indicators if loaded */}
+      {liveRisk && (
+        <div className="mt-5 space-y-4">
+          <div className="rounded-xl border-2 border-[#123C32] bg-white p-4 shadow-[3px_3px_0px_#123C32]">
+            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/60">
+              Primary Risk Driver
+            </span>
+            <p className="mt-1 font-display text-base font-bold text-[#252923]">
+              {liveRisk.risk_drivers?.[0]?.name?.toUpperCase() || "MONITORING"}
+            </p>
+            <p className="mt-1 font-sans text-xs text-[#252923]/70">
+              Assessed at {liveRisk.assessment_time || "Recent Cycle"}.
+            </p>
+          </div>
 
-      {/* CTA */}
-      <Link
-        href="/farmer/advisory"
-        className="mt-6 flex items-center justify-center gap-2 rounded-full bg-[var(--color-forest)] py-3 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition-all hover:bg-[var(--color-forest-dark)] hover:shadow-[var(--shadow-md)]"
-      >
-        {t("riskMapPage.openAdvisory")}
-        <ArrowRight size={14} />
-      </Link>
-    </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border-2 border-[#123C32]/30 bg-white p-3">
+              <span className="flex items-center gap-1 font-mono text-[10px] font-bold uppercase text-[#2878A5]">
+                <CloudRain size={12} />
+                Confidence
+              </span>
+              <p className="mt-1 font-mono text-base font-bold text-[#123C32]">
+                {liveRisk.confidence.toUpperCase()}
+              </p>
+            </div>
+
+            <div className="rounded-lg border-2 border-[#123C32]/30 bg-white p-3">
+              <span className="flex items-center gap-1 font-mono text-[10px] font-bold uppercase text-[#E6A52E]">
+                <Sun size={12} />
+                Drivers
+              </span>
+              <p className="mt-1 font-mono text-base font-bold text-[#123C32]">
+                {liveRisk.risk_drivers?.length ?? 0} active
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action CTA: Set as My Location & Go to Dashboard */}
+      <div className="mt-6 space-y-2 border-t-2 border-[#123C32]/15 pt-5">
+        <Link
+          href="/farmer/dashboard"
+          onClick={selectAsFarmerLocation}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-[#123C32] bg-[#123C32] py-3 font-mono text-xs font-bold uppercase tracking-wider text-[#F4F0E5] shadow-[3px_3px_0px_#252923] hover:bg-[#172B4D] transition"
+        >
+          <Sprout size={15} className="text-[#E6A52E]" />
+          <span>Monitor as My Farm</span>
+          <ArrowRight size={14} />
+        </Link>
+
+        <Link
+          href={`/location?q=${encodeURIComponent(item.block_name)}`}
+          className="flex w-full items-center justify-center gap-1 rounded-lg border-2 border-[#123C32]/30 bg-white py-2.5 font-mono text-xs font-bold text-[#123C32] hover:bg-[#F4F0E5] transition"
+        >
+          <span>View Taluka Profile</span>
+        </Link>
+      </div>
+    </aside>
   );
 }
-
-function MiniMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-[var(--color-paper-raised)] border border-[var(--color-line)]/50 p-2.5 text-center">
-      <p className="tabular font-display text-lg text-[var(--color-ink)]">{value}</p>
-      <p className="mt-0.5 text-[9px] leading-tight text-[var(--color-ink)]/45">{label}</p>
-    </div>
-  );
-}
-

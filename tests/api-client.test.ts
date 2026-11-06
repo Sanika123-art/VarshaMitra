@@ -1,4 +1,4 @@
-import { test, describe, beforeEach, afterEach } from "node:test";
+import { test, describe } from "node:test";
 import assert from "node:assert";
 import { ApiError } from "../src/lib/api/client.ts";
 
@@ -40,7 +40,7 @@ describe("API Client & Error Handling Suite", () => {
         async () => {
           await api.getForecast("baramati", 30);
         },
-        (err: any) => {
+        (err: unknown) => {
           return err instanceof ApiError && err.status === 422;
         }
       );
@@ -61,7 +61,7 @@ describe("API Client & Error Handling Suite", () => {
         async () => {
           await api.getHealth();
         },
-        (err: any) => {
+        (err: unknown) => {
           return err instanceof ApiError && err.status === 503 && err.message.includes("Network error");
         }
       );
@@ -72,7 +72,7 @@ describe("API Client & Error Handling Suite", () => {
 
   test("Timeout handling aborts long-hanging request", async () => {
     const originalFetch = global.fetch;
-    global.fetch = async (_url, options: any) => {
+    global.fetch = async () => {
       // Immediately abort to simulate timeout
       const abortError = new Error("The operation was aborted");
       abortError.name = "AbortError";
@@ -85,7 +85,7 @@ describe("API Client & Error Handling Suite", () => {
         async () => {
           await api.getHealth();
         },
-        (err: any) => {
+        (err: unknown) => {
           return err instanceof ApiError && err.status === 408;
         }
       );

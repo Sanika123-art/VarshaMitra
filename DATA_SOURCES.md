@@ -1,56 +1,66 @@
-# Data Sources (Future Integrations)
+# Data Sources & Scientific Provenance
 
-This prototype uses **local mock data only** (`src/data/`). Nothing in this
-repository calls a live weather or climate API. This document lists the real
-data sources the production system is designed to eventually ingest.
+This document records the authoritative data sources, scientific publications, provider licenses, and operational boundaries utilized by VarshaMitra.
 
-## Rainfall & surface weather
+---
 
-- **IMD (India Meteorological Department)** rainfall observations and
-  gridded rainfall products — the primary ground-truth rainfall source.
-- **IMD** climate datasets (temperature, humidity) for feature engineering
-  and bias-correction of downscaled model output.
+## 1. Meteorological & Climate Intelligence
 
-## Large-scale climate signals
+### 1.1 High-Resolution Numerical Weather Forecasts
+- **Provider**: Open-Meteo Weather API (`open-meteo.com`)
+- **Dataset**: Seamless combination of global (ECMWF IFS, GFS) and regional high-resolution atmospheric models.
+- **Spatial Resolution**: ~1 km to 11 km downscaled atmospheric grid points.
+- **Temporal Resolution**: Hourly and Daily aggregates (Precipitation sum in mm, Max/Min Temperature in °C, Precipitation Probability %).
+- **License & Attribution**: Creative Commons Attribution 4.0 International (CC BY 4.0).
+- **Provenance Disclosure**: Clearly labeled as numerical weather model forecasts; never misrepresented as in-situ rain gauge measurements.
 
-- **NOAA ONI / ENSO** index — El Niño / La Niña state, a major driver of
-  Indian monsoon variability.
-- **Bureau of Meteorology (Australia) IOD** index — Indian Ocean Dipole,
-  which modulates monsoon rainfall independently of ENSO.
-- **Bureau of Meteorology (Australia) MJO** index — Madden–Julian
-  Oscillation, relevant to sub-seasonal (2–4 week) rainfall bursts and dry
-  spells.
+### 1.2 Multi-Decadal Historical Weather & Climate Archive
+- **Provider**: Open-Meteo Historical Weather API / Copernicus ERA5-Land Reanalysis.
+- **Dataset**: ECMWF ERA5-Land Reanalysis (1994–2024, 30+ year climatological baseline).
+- **Storage**: Local SQLite database (`backend/data/historical_climate.db`).
+- **Use Case**: Climatological baseline calculation, historical dry-spell frequency, rainfall anomaly percentiles, and multi-decadal trend analytics.
+- **Provenance Disclosure**: Identified as global reanalysis modeled observations.
 
-## Reanalysis & soil data
+---
 
-- **Copernicus ERA5-Land** — reanalysis fields (precipitation, temperature,
-  soil moisture) for historical training data and gap-filling.
-- **Copernicus soil moisture products** — direct input to dry-spell and
-  moisture-stress risk scoring.
+## 2. Geospatial & Administrative Gazetteer
 
-## Agricultural & administrative context
+### 2.1 Maharashtra Statewide Administrative Directory
+- **Authoritative Source**: Local Government Directory (LGD), Ministry of Panchayati Raj, Government of India.
+- **Coverage**: 36 official districts across all 5 administrative divisions (Konkan, Western Maharashtra, Khandesh, Marathwada, Vidarbha) with ~160 monitored talukas/blocks.
+- **Precision**: Centroids (WGS84 EPSG:4326) validated for administrative representation. Clearly disclosed that centroids do not represent farm cadastral boundaries.
 
-- **Government crop calendars** — expected sowing/growth/harvest windows by
-  crop and district, used to contextualise crop-stage-specific advisories.
-- **Government crop production data** — historical yield and area data for
-  validating the eventual risk model against real outcomes.
-- **Government administrative boundaries** (state/district/block/panchayat
-  GeoJSON) — to replace this prototype's approximate centroid coordinates
-  with real polygon boundaries on the risk map.
+### 2.2 Dynamic Reverse Geocoding & Search
+- **Provider**: OpenStreetMap Nominatim (`nominatim.openstreetmap.org`)
+- **Operational Boundaries**: Strictly bounded to Maharashtra ($15.60^\circ\text{N} - 22.15^\circ\text{N}$, $72.60^\circ\text{E} - 80.90^\circ\text{E}$).
+- **Rate-Limiting & Caching**: 1 request per second client compliance; 2-hour TTL cache in-memory. User-Agent identified as `VarshaMitra/1.0`.
+- **License & Attribution**: © OpenStreetMap contributors (ODbL).
 
-## What this prototype uses instead
+---
 
-`src/data/locations.ts`, `src/data/climate.ts`, `src/data/crops.ts` and
-`src/data/officer.ts` contain hand-authored, internally-consistent mock data
-for seven Maharashtra districts and their blocks, generated deterministically
-so the same block always tells the same climate story (see `MOCK_DATA.md`).
-This mock data is structured to mirror the shape the real sources above would
-eventually populate, so the data layer — not the UI — is what changes when
-real integrations are added.
+## 3. Agronomic Science & Package of Practices
 
-## Non-negotiable framing
+### 3.1 Maharashtra Agricultural University Recommendations
+- **Mahatma Phule Krishi Vidyapeeth (MPKV), Rahuri**:
+  - *Krishi Darshani & Package of Practices for Kharif and Rabi Crops*.
+  - Sowing window guidelines (antecedent moisture requirements, "vapsa" condition: 75–100 mm cumulative monsoon rainfall).
+  - Crop-stage sensitivity rules (vegetative, flowering, grain fill, harvest).
+- **Dr. Panjabrao Deshmukh Krishi Vidyapeeth (PDKV), Akola**:
+  - *Crop Weather Calendars for Vidarbha & Khandesh* (Cotton, Soybean, Tur).
+- **Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani**:
+  - *Agrometeorological Contingency Plans for Marathwada* (Jowar, Bajra, Soybean).
+- **ICAR-Central Research Institute for Dryland Agriculture (ICAR-CRIDA)**:
+  - *Contingency Crop Planning Atlas for Maharashtra*.
 
-VarshaMitra is designed to **complement** IMD and other official sources, not
-replace them. No screen in this product claims to be an authoritative
-forecast, and no accuracy metric is shown anywhere, because no model has
-been trained on real data yet.
+### 3.2 Soil Characterization & Baselines
+- **ICAR-National Bureau of Soil Survey and Land Use Planning (ICAR-NBSS&LUP)**:
+  - Regional Maharashtra soil series classification (Deep Black Vertisols, Coastal Laterites, Medium Vertic Inceptisols).
+  - Provenance Disclosure: Soil properties are regional agroclimatic baseline models; farmers are encouraged to cross-reference with their Soil Health Card (SHC) for plot-level chemical nutrient measurements (NPK, micronutrients).
+
+---
+
+## 4. NuGen AI Grounding & Explainability
+
+- **Provider**: Google Gemini / DeepMind API (via server-side environment `GEMINI_API_KEY` or `NUGEN_API_KEY`).
+- **Safety & Verification**: NuGen serves purely as an explanatory layer. It translates deterministic agronomic indicators into accessible plain-language Marathi or English.
+- **Fail-Safe Mechanism**: If the AI explanation provider is unreachable or times out, the system automatically falls back to deterministic rule templates without compromising agricultural accuracy or crashing the user interface.

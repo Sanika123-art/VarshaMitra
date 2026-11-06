@@ -43,6 +43,12 @@ SIGNIFICANT_DRY_SPELL_DAYS: int = 7
 CRITICAL_DRY_SPELL_DAYS: int = 14
 
 
+# Southwest-monsoon months (June-September). The dry-spell and rainfall-deficit rules were written for
+# in-season monitoring: a long rainless spell outside these months is the normal dry season in Maharashtra
+# and is NOT treated as crop stress by the risk engine. Heavy-rain rules apply in every month.
+MONSOON_SEASON_MONTHS = (6, 7, 8, 9)
+
+
 # -------------------------------------------------------------------------
 # Data Quality & Coverage Thresholds
 # -------------------------------------------------------------------------
@@ -74,5 +80,5 @@ ONSET_CUMULATIVE_2DAY_MM: float = 25.0
 # -------------------------------------------------------------------------
 # Engine Metadata
 # -------------------------------------------------------------------------
-RISK_ENGINE_METHOD_VERSION: str = "heuristic-agroclimatic-v1.0.0"
+RISK_ENGINE_METHOD_VERSION: str = "heuristic-agroclimatic-v1.1.0"
 ML_BOUNDARY_VERSION: str = "future-ml-spec-v1.0.0"

@@ -4,11 +4,12 @@ Uses SQLite with composite primary keys for guaranteed idempotency and deduplica
 Compatible with future migration to PostgreSQL / TimescaleDB.
 """
 
+import contextlib
 from datetime import date, datetime, timezone
 import os
 from pathlib import Path
 import sqlite3
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from app.schemas.rainfall import DataType, HistoricalRainfallRecord, QualityStatus
 
@@ -32,14 +33,19 @@ class HistoricalDatasetStorage:
     def db_path(self) -> str:
         return str(self._db_path)
 
-    def _get_connection(self) -> sqlite3.Connection:
+    @contextlib.contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
         conn = sqlite3.connect(self._db_path)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_db(self) -> None:
         """Initialize database schema with primary key constraints for deduplication."""
-        with self._get_connection() as conn:
+        with self._connection() as conn:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS historical_rainfall (
@@ -74,7 +80,7 @@ class HistoricalDatasetStorage:
         inserted_count = 0
         skipped_count = 0
 
-        with self._get_connection() as conn:
+        with self._connection() as conn:
             cursor = conn.cursor()
             for r in records:
                 # Check if exact record exists with same precipitation value
@@ -151,7 +157,7 @@ class HistoricalDatasetStorage:
         query += " ORDER BY observation_date ASC"
 
         records: List[HistoricalRainfallRecord] = []
-        with self._get_connection() as conn:
+        with self._connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params)
             for row in cursor.fetchall():
@@ -176,7 +182,7 @@ class HistoricalDatasetStorage:
 
     def get_dataset_summary(self, location_id: Optional[str] = None) -> Dict[str, Any]:
         """Compute coverage, total records, and completeness statistics."""
-        with self._get_connection() as conn:
+        with self._connection() as conn:
             cursor = conn.cursor()
             if location_id:
                 cursor.execute(
@@ -218,7 +224,7 @@ class HistoricalDatasetStorage:
             "min_date": row["min_date"] if row else None,
             "max_date": row["max_date"] if row else None,
             "total_precipitation_mm": round(row["total_mm"], 2) if row and row["total_mm"] else 0.0,
-            "storage_file": str(self._db_path),
+            "storage_file": self._db_path.name,
         }
 
 

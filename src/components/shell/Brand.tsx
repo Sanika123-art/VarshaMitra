@@ -1,6 +1,10 @@
 import { cn } from "@/lib/utils";
 
-/** VarshaMitra's own mark: a raindrop with a sprout vein — deliberately not any official emblem. */
+/**
+ * VarshaMitra Emblem:
+ * Refined institutional mark with monsoon precipitation droplet, germinating seed sprout,
+ * and soil contour lines in Forest Green (#123C32) and Harvest Gold (#E6A52E).
+ */
 export function BrandMark({ size = 36, className }: { size?: number; className?: string }) {
   return (
     <svg
@@ -9,30 +13,60 @@ export function BrandMark({ size = 36, className }: { size?: number; className?:
       viewBox="0 0 40 40"
       role="img"
       aria-label="VarshaMitra"
-      className={cn("shrink-0", className)}
+      className={cn("shrink-0 select-none", className)}
     >
-      <rect width="40" height="40" rx="9" fill="var(--color-forest)" />
+      {/* Neo-brutalist solid base with subtle shadow border */}
+      <rect width="40" height="40" rx="8" fill="#123C32" />
+      <rect x="1" y="1" width="38" height="38" rx="7" fill="none" stroke="#E6A52E" strokeWidth="1" strokeOpacity="0.4" />
+      
+      {/* Rainfall Drop Geometry */}
       <path
-        d="M20 7.5c4.6 5.7 8 9.9 8 14.2a8 8 0 0 1-16 0c0-4.3 3.4-8.5 8-14.2z"
-        fill="#fff"
+        d="M20 7c4.8 6 8.5 10.3 8.5 14.8a8.5 8.5 0 0 1-17 0c0-4.5 3.7-8.8 8.5-14.8z"
+        fill="#F4F0E5"
       />
-      <path d="M20 30.5V20" stroke="var(--color-forest)" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M20 24c-2.6 0-4-1.4-4-3.8 2.6 0 4 1.4 4 3.8z" fill="var(--color-moss)" />
-      <path d="M20 21.5c2.4 0 3.7-1.3 3.7-3.5-2.4 0-3.7 1.3-3.7 3.5z" fill="var(--color-monsoon)" />
+      {/* Center Sprout Stem */}
+      <path d="M20 30V19" stroke="#123C32" strokeWidth="2.2" strokeLinecap="round" />
+      
+      {/* Sprout Foliage: Left Foliage in Harvest Gold, Right Foliage in Rain Blue */}
+      <path d="M20 23.5c-3 0-4.6-1.6-4.6-4.2 3 0 4.6 1.6 4.6 4.2z" fill="#E6A52E" />
+      <path d="M20 20.5c2.8 0 4.4-1.5 4.4-4 -2.8 0-4.4 1.5-4.4 4z" fill="#2878A5" />
+
+      {/* Moisture Arc Accent */}
+      <circle cx="20" cy="11.5" r="1.5" fill="#123C32" />
     </svg>
   );
 }
 
-export function BrandLockup({ light = false, showTagline = true, tagline }: { light?: boolean; showTagline?: boolean; tagline?: string }) {
+export function BrandLockup({
+  light = false,
+  showTagline = true,
+  tagline,
+}: {
+  light?: boolean;
+  showTagline?: boolean;
+  tagline?: string;
+}) {
   return (
     <span className="flex items-center gap-2.5">
       <BrandMark />
       <span className="leading-tight">
-        <span className={cn("block font-serif text-xl font-semibold tracking-tight", light ? "text-white" : "text-forest-dark")}>
+        <span
+          className={cn(
+            "block font-display text-xl font-bold tracking-tight",
+            light ? "text-[#F4F0E5]" : "text-[#123C32]"
+          )}
+        >
           VarshaMitra
         </span>
-        {showTagline && tagline && (
-          <span className={cn("hidden text-xs sm:block", light ? "text-white/70" : "text-ink-muted")}>{tagline}</span>
+        {showTagline && (
+          <span
+            className={cn(
+              "hidden font-mono text-[11px] font-semibold tracking-wider uppercase sm:block",
+              light ? "text-[#F4F0E5]/70" : "text-[#252923]/70"
+            )}
+          >
+            {tagline ?? "Agricultural Intelligence"}
+          </span>
         )}
       </span>
     </span>

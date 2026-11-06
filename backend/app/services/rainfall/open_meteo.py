@@ -7,9 +7,15 @@ API SPECIFICATION & PROVENANCE:
 - Units: millimeters (mm)
 - Timezone: Asia/Kolkata (Indian Standard Time, UTC+05:30)
 - License: Attribution required (CC BY 4.0 Open-Meteo & Copernicus)
+
+DATA-TYPE NOTE:
+- `get_recent_observations` uses the forecast endpoint's `past_days` window. Those values are
+  model analysis output, NOT rain-gauge observations and NOT ERA5-Land reanalysis. They are
+  labelled DataType.MODEL_ANALYSIS. The current calendar day (IST) is excluded because it is
+  incomplete and forecast-derived.
 """
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import json
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException, status
@@ -27,6 +33,13 @@ from app.schemas.rainfall import (
     RainfallObservationSeries,
 )
 from app.services.rainfall.base import RainfallProvider
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def today_ist() -> date:
+    """Current calendar date in Indian Standard Time."""
+    return datetime.now(IST).date()
 
 
 class OpenMeteoRainfallProvider(RainfallProvider):
@@ -96,8 +109,12 @@ class OpenMeteoRainfallProvider(RainfallProvider):
         raw_data: Dict[str, Any],
         block: BlockDetail,
         retrieved_at: datetime,
+        exclude_from: Optional[date] = None,
     ) -> RainfallObservationSeries:
-        """Parse raw provider JSON into validated RainfallObservationSeries."""
+        """Parse raw provider JSON into validated RainfallObservationSeries.
+
+        Days on or after `exclude_from` (the incomplete current day) are dropped.
+        """
         daily_units = raw_data.get("daily_units", {})
         precip_unit = daily_units.get("precipitation_sum", "mm")
         if precip_unit != "mm":
@@ -116,6 +133,8 @@ class OpenMeteoRainfallProvider(RainfallProvider):
 
         for t_str, p_val in zip(time_list, precip_list):
             obs_date = date.fromisoformat(t_str)
+            if exclude_from is not None and obs_date >= exclude_from:
+                continue
 
             if p_val is None:
                 missing_count += 1
@@ -126,6 +145,7 @@ class OpenMeteoRainfallProvider(RainfallProvider):
                         value_mm=None,
                         unit="mm",
                         quality=QualityStatus.MISSING,
+                        data_type=DataType.MODEL_ANALYSIS,
                         notes="No precipitation value reported for this calendar day",
                     )
                 )
@@ -141,6 +161,7 @@ class OpenMeteoRainfallProvider(RainfallProvider):
                             value_mm=None,
                             unit="mm",
                             quality=QualityStatus.MISSING,
+                            data_type=DataType.MODEL_ANALYSIS,
                             notes=f"Value {float_val} mm out of physical range [0, 1500]",
                         )
                     )
@@ -153,6 +174,7 @@ class OpenMeteoRainfallProvider(RainfallProvider):
                             value_mm=float_val,
                             unit="mm",
                             quality=QualityStatus.FRESH,
+                            data_type=DataType.MODEL_ANALYSIS,
                             notes=None,
                         )
                     )
@@ -163,7 +185,7 @@ class OpenMeteoRainfallProvider(RainfallProvider):
         provider_meta = ProviderMetadata(
             provider_id=self.provider_id,
             provider_name=self.provider_name,
-            dataset_name="Open-Meteo High-Resolution Numerical / ERA5 Forecast Blend",
+            dataset_name="Open-Meteo recent-past model analysis (forecast-service past_days; not gauge observations)",
             attribution="Weather data by Open-Meteo.com under CC BY 4.0; includes Copernicus ERA5 data.",
             license="CC BY 4.0",
             spatial_resolution="0.1° (~11 km)",
@@ -184,6 +206,7 @@ class OpenMeteoRainfallProvider(RainfallProvider):
             count=len(observations),
             total_rainfall_mm=round(total_mm, 2),
             missing_days_count=missing_count,
+            data_type=DataType.MODEL_ANALYSIS,
             retrieved_at=retrieved_at,
             provider=provider_meta,
         )
@@ -192,6 +215,7 @@ class OpenMeteoRainfallProvider(RainfallProvider):
         self,
         block: BlockDetail,
         days: int = 7,
+        client: Optional[httpx.AsyncClient] = None,
     ) -> RainfallObservationSeries:
         """Fetch and normalize daily observations for the given block and duration."""
         if days < 1 or days > 30:
@@ -206,21 +230,25 @@ class OpenMeteoRainfallProvider(RainfallProvider):
             "longitude": block.longitude,
             "daily": "precipitation_sum",
             "past_days": days,
-            "forecast_days": 1,  # Include current observation day
+            "forecast_days": 1,  # today (incomplete) is requested but excluded during normalization
             "timezone": "Asia/Kolkata",
         }
 
         retrieved_at = datetime.now(timezone.utc)
+        exclude_from = today_ist()
         last_error: Optional[Exception] = None
 
         for attempt in range(1 + self._max_retries):
             try:
-                async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
+                if client is not None:
                     response = await client.get(self._base_url, params=params)
+                else:
+                    async with httpx.AsyncClient(timeout=self._timeout_seconds) as temp_client:
+                        response = await temp_client.get(self._base_url, params=params)
 
                 if response.status_code == 200:
                     raw_json = response.json()
-                    return self._normalize_raw_response(raw_json, block, retrieved_at)
+                    return self._normalize_raw_response(raw_json, block, retrieved_at, exclude_from=exclude_from)
                 elif response.status_code == 429:
                     raise HTTPException(
                         status_code=status.HTTP_429_TOO_MANY_REQUESTS,

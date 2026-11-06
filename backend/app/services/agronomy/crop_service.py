@@ -14,9 +14,13 @@ class CropService:
         return get_crop_requirement(crop_id)
 
     @staticmethod
-    def list_crops(season: Optional[CropSeason] = None) -> List[CropRequirement]:
-        """List supported crops, optionally filtered by season."""
-        return list_supported_crops(season)
+    def list_crops(
+        season: Optional[CropSeason] = None,
+        category: Optional[str] = None,
+        search: Optional[str] = None,
+    ) -> List[CropRequirement]:
+        """List supported crops, optionally filtered by season, category, and search query."""
+        return list_supported_crops(season=season, category=category, search=search)
 
     @staticmethod
     def get_stage(crop_id: str, stage_id: str) -> Optional[GrowthStageItem]:

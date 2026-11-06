@@ -1,45 +1,50 @@
-import type { Block, RiskLevel } from "@/types";
+import type { RiskLevel } from "@/types";
+import type { RiskSummaryItem } from "@/lib/api/types";
 
-export type MapLayer = "overall" | "rainfall" | "drySpell" | "heavyRain" | "onset";
+export type MapLayer = "overall" | "drySpell" | "heavyRain" | "onset";
 
-export const mapLayers: MapLayer[] = ["overall", "rainfall", "drySpell", "heavyRain", "onset"];
+export const mapLayers: MapLayer[] = ["overall", "drySpell", "heavyRain", "onset"];
 
 export const layerLabelKey: Record<MapLayer, string> = {
   overall: "riskMapPage.layerOverall",
-  rainfall: "riskMapPage.layerRainfall",
   drySpell: "riskMapPage.layerDrySpell",
   heavyRain: "riskMapPage.layerHeavyRain",
   onset: "riskMapPage.layerOnset",
 };
 
-function bucket(score: number): RiskLevel {
-  if (score >= 75) return "critical";
-  if (score >= 55) return "high";
-  if (score >= 30) return "moderate";
-  return "low";
-}
+/**
+ * Deterministically computes the display risk level for a block under the selected layer.
+ * Strictly derives from backend indicators without synthetic probability models.
+ */
+export function layerRisk(item: RiskSummaryItem, layer: MapLayer): RiskLevel {
+  if (item.status === "unavailable" || !item.overall_risk) {
+    return "insufficient_data";
+  }
 
-export function layerScore(block: Block, layer: MapLayer): number {
   switch (layer) {
-    case "drySpell":
-      return block.drySpellProbability;
-    case "heavyRain":
-      return block.heavyRainProbability;
-    case "onset":
-      return 100 - block.monsoonOnsetProbability;
-    case "rainfall":
-      return Math.round(
-        (100 - block.monsoonOnsetProbability) * 0.4 +
-          block.drySpellProbability * 0.3 +
-          block.heavyRainProbability * 0.3
-      );
+    case "drySpell": {
+      const sev = item.dry_spell_severity;
+      if (sev === "critical") return "critical";
+      if (sev === "significant") return "high";
+      if (sev === "mild") return "moderate";
+      return "low";
+    }
+    case "heavyRain": {
+      if (item.heavy_rain_event) {
+        if ((item.max_single_day_mm ?? 0) >= 115.6) return "critical";
+        return "high";
+      }
+      return "low";
+    }
+    case "onset": {
+      const st = item.monsoon_onset_status;
+      if (st === "delayed_onset") return "high";
+      if (st === "onset_criteria_not_met") return "moderate";
+      if (st === "outside_onset_window") return "insufficient_data";
+      return "low";
+    }
     case "overall":
     default:
-      return { low: 15, moderate: 45, high: 65, critical: 88 }[block.risk];
+      return item.overall_risk;
   }
-}
-
-export function layerRisk(block: Block, layer: MapLayer): RiskLevel {
-  if (layer === "overall") return block.risk;
-  return bucket(layerScore(block, layer));
 }

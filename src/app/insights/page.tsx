@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   BarChart,
   Bar,
@@ -22,14 +23,7 @@ import {
 } from "@/data/insights";
 import { getBlock } from "@/data/locations";
 import { pickName } from "@/lib/utils";
-import {
-  PageHeader,
-  Card,
-  CardHeader,
-  DataStatus,
-  MetaChip,
-} from "@/components/ui";
-import { TrendingUp, Droplets, Sprout, BarChart3, Database, HardDrive, CheckCircle2 } from "lucide-react";
+import { TrendingUp, Droplets, Sprout, BarChart3, Database, ArrowRight } from "lucide-react";
 import { api, type DatasetSummaryResponse } from "@/lib/api";
 
 export default function InsightsPage() {
@@ -55,90 +49,104 @@ export default function InsightsPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      {/* ── Page Header ────────────────────────────────────── */}
-      <PageHeader
-        eyebrow={t("insights.eyebrow")}
-        title={t("insights.title")}
-        description={t("insights.subtitle")}
-      >
-        <MetaChip>1994–2024 Historical Baseline</MetaChip>
-        {datasetSummary && (
-          <MetaChip>
-            <span className="flex items-center gap-1.5 text-forest">
-              <span className="h-2 w-2 rounded-full bg-forest" />
-              Ingested Records: {datasetSummary.total_records.toLocaleString()} (Valid: {datasetSummary.valid_records.toLocaleString()})
+    <div className="space-y-8 bg-[#F4F0E5] text-[#252923]">
+      
+      {/* ── Page Header ── */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-[#123C32]/20 pb-5">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="rounded border border-[#123C32] bg-[#123C32] px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-[#F4F0E5]">
+              Climatology Archive
             </span>
-          </MetaChip>
-        )}
-      </PageHeader>
+            <span className="font-mono text-xs font-semibold text-[#123C32]">
+              30-Year Longitudinal Reanalysis (1994–2024)
+            </span>
+          </div>
+          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-[#123C32] sm:text-3xl">
+            {t("insights.title")}
+          </h1>
+          <p className="mt-1 font-sans text-xs text-[#252923]/70 sm:text-sm">
+            {t("insights.subtitle")}
+          </p>
+        </div>
 
-      {/* ── Provenance Banner ───────────────────────────────── */}
-      <DataStatus kind="historical" period={historicalPeriod} />
+        <div className="flex items-center gap-2 font-mono text-xs">
+          <span className="rounded-lg border-2 border-[#123C32] bg-white px-3 py-1.5 font-bold text-[#123C32] shadow-[2px_2px_0px_#123C32]">
+            IMD & ERA5-Land Verified
+          </span>
+        </div>
+      </div>
 
-      {/* ── Live Dataset Acquisition Engine Summary ─────────── */}
+      {/* ── Live Dataset Acquisition Engine Summary ── */}
       {datasetSummary && (
-        <Card tone="default" className="border-forest/30 bg-surface">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
+        <div className="rounded-xl border-2 border-[#123C32] bg-white p-6 shadow-[4px_4px_0px_#123C32]">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-[#123C32]/15 pb-3">
             <div className="flex items-center gap-2">
-              <Database size={18} className="text-forest" />
-              <h2 className="font-serif text-base font-semibold text-ink">
+              <Database size={18} className="text-[#123C32]" />
+              <h2 className="font-display text-base font-bold text-[#123C32]">
                 Verified Meteorological Dataset Engine (Local Storage)
               </h2>
             </div>
-            <span className="rounded-full bg-forest-soft px-2.5 py-0.5 text-[11px] font-semibold text-forest">
+            <span className="rounded border border-[#123C32] bg-[#F4F0E5] px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase text-[#123C32]">
               SQLite Persistent Store
             </span>
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-4">
-            <div className="rounded-lg border border-line bg-paper-deep/30 p-3">
-              <span className="text-[11px] font-semibold uppercase text-ink-muted">Total Records</span>
-              <p className="mt-1 text-lg font-bold text-ink">{datasetSummary.total_records.toLocaleString()}</p>
-              <span className="text-[10px] text-ink-subtle">Ingested weather observations</span>
+            <div className="rounded-lg border-2 border-[#123C32]/20 bg-[#F4F0E5]/60 p-3">
+              <span className="font-mono text-[10px] font-bold uppercase text-[#123C32]/60">Total Records</span>
+              <p className="mt-1 font-mono text-lg font-black text-[#123C32]">{datasetSummary.total_records.toLocaleString()}</p>
+              <span className="font-mono text-[10px] text-[#252923]/60">Weather observations</span>
             </div>
-            <div className="rounded-lg border border-line bg-paper-deep/30 p-3">
-              <span className="text-[11px] font-semibold uppercase text-ink-muted">Valid Observations</span>
-              <p className="mt-1 text-lg font-bold text-forest">{datasetSummary.valid_records.toLocaleString()}</p>
-              <span className="text-[10px] text-ink-subtle">Missing: {datasetSummary.missing_records}</span>
+            <div className="rounded-lg border-2 border-[#123C32]/20 bg-[#F4F0E5]/60 p-3">
+              <span className="font-mono text-[10px] font-bold uppercase text-[#123C32]/60">Valid Observations</span>
+              <p className="mt-1 font-mono text-lg font-black text-[#3B8B61]">{datasetSummary.valid_records.toLocaleString()}</p>
+              <span className="font-mono text-[10px] text-[#252923]/60">Missing: {datasetSummary.missing_records}</span>
             </div>
-            <div className="rounded-lg border border-line bg-paper-deep/30 p-3">
-              <span className="text-[11px] font-semibold uppercase text-ink-muted">Coverage Period</span>
-              <p className="mt-1 text-xs font-bold text-ink">
+            <div className="rounded-lg border-2 border-[#123C32]/20 bg-[#F4F0E5]/60 p-3">
+              <span className="font-mono text-[10px] font-bold uppercase text-[#123C32]/60">Coverage Period</span>
+              <p className="mt-1 font-mono text-xs font-bold text-[#123C32]">
                 {datasetSummary.min_date || "1994"} → {datasetSummary.max_date || "2024"}
               </p>
-              <span className="text-[10px] text-ink-subtle">Multi-decadal reanalysis</span>
+              <span className="font-mono text-[10px] text-[#252923]/60">Multi-decadal reanalysis</span>
             </div>
-            <div className="rounded-lg border border-line bg-paper-deep/30 p-3">
-              <span className="text-[11px] font-semibold uppercase text-ink-muted">Accumulated Rainfall</span>
-              <p className="mt-1 text-lg font-bold text-ink">
+            <div className="rounded-lg border-2 border-[#123C32]/20 bg-[#F4F0E5]/60 p-3">
+              <span className="font-mono text-[10px] font-bold uppercase text-[#123C32]/60">Accumulated Rain</span>
+              <p className="mt-1 font-mono text-lg font-black text-[#123C32]">
                 {datasetSummary.total_precipitation_mm?.toLocaleString() ?? 0} mm
               </p>
-              <span className="text-[10px] text-ink-subtle">Storage: {datasetSummary.location_id}</span>
+              <span className="font-mono text-[10px] text-[#252923]/60">Location: {datasetSummary.location_id}</span>
             </div>
           </div>
-        </Card>
+        </div>
       )}
 
-      {/* ── Rainfall Anomalies Chart ────────────────────────── */}
-      <Card tone="default">
-        <CardHeader
-          icon={BarChart3}
-          title={t("insights.rainfallAnomalies")}
-          description={t("insights.rainfallAnomaliesDesc")}
-        />
-        <div className="mt-5 h-72">
+      {/* ── Rainfall Anomalies Chart ── */}
+      <div className="rounded-xl border-2 border-[#123C32] bg-white p-6 shadow-[4px_4px_0px_#123C32]">
+        <div className="border-b-2 border-[#123C32]/15 pb-4">
+          <div className="flex items-center gap-2">
+            <BarChart3 size={18} className="text-[#123C32]" />
+            <h2 className="font-display text-lg font-bold text-[#123C32]">
+              {t("insights.rainfallAnomalies")}
+            </h2>
+          </div>
+          <p className="font-sans text-xs text-[#252923]/70 mt-1">
+            {t("insights.rainfallAnomaliesDesc")}
+          </p>
+        </div>
+
+        <div className="mt-6 h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={historicalTrend} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
-              <CartesianGrid stroke="var(--color-line)" strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid stroke="#123C32" strokeOpacity={0.1} strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="year"
-                tick={{ fontSize: 12, fill: "var(--color-ink-muted)" }}
-                axisLine={{ stroke: "var(--color-line-strong)" }}
+                tick={{ fontSize: 11, fill: "#252923", fontFamily: "var(--font-ibm-plex-mono)" }}
+                axisLine={{ stroke: "#123C32", strokeWidth: 1.5 }}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fontSize: 12, fill: "var(--color-ink-muted)" }}
+                tick={{ fontSize: 11, fill: "#252923", fontFamily: "var(--font-ibm-plex-mono)" }}
                 axisLine={false}
                 tickLine={false}
                 width={45}
@@ -147,46 +155,55 @@ export default function InsightsPage() {
               <Tooltip
                 formatter={(v) => [`${v}%`, t("insights.anomaly")]}
                 contentStyle={{
-                  borderRadius: 8,
-                  border: "1px solid var(--color-line-strong)",
+                  borderRadius: 6,
+                  border: "2px solid #123C32",
                   fontSize: 12,
-                  backgroundColor: "var(--color-surface-raised)",
+                  fontFamily: "var(--font-ibm-plex-mono)",
+                  backgroundColor: "#F4F0E5",
+                  boxShadow: "3px 3px 0px #123C32",
                 }}
               />
-              <Bar dataKey="rainfallAnomalyPct" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="rainfallAnomalyPct" radius={[2, 2, 0, 0]}>
                 {historicalTrend.map((d, i) => (
                   <Cell
                     key={i}
-                    fill={d.rainfallAnomalyPct >= 0 ? "var(--color-monsoon)" : "var(--color-earth)"}
+                    fill={d.rainfallAnomalyPct >= 0 ? "#2878A5" : "#E58A38"}
                   />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </Card>
+      </div>
 
-      {/* ── Historical Dry Spell Days & District Frequency ──── */}
+      {/* ── Historical Dry Spell Days & District Frequency ── */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Trend line */}
-        <Card tone="default">
-          <CardHeader
-            icon={TrendingUp}
-            title={t("insights.historicalTrends")}
-            description={t("insights.drySpellDaysTrend")}
-          />
+        <div className="rounded-xl border-2 border-[#123C32] bg-white p-6 shadow-[4px_4px_0px_#123C32]">
+          <div className="border-b-2 border-[#123C32]/15 pb-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={18} className="text-[#123C32]" />
+              <h3 className="font-display text-base font-bold text-[#123C32]">
+                {t("insights.historicalTrends")}
+              </h3>
+            </div>
+            <p className="font-sans text-xs text-[#252923]/70 mt-1">
+              {t("insights.drySpellDaysTrend")}
+            </p>
+          </div>
+
           <div className="mt-5 h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={historicalTrend} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
-                <CartesianGrid stroke="var(--color-line)" strokeDasharray="3 3" vertical={false} />
+                <CartesianGrid stroke="#123C32" strokeOpacity={0.1} strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="year"
-                  tick={{ fontSize: 12, fill: "var(--color-ink-muted)" }}
-                  axisLine={{ stroke: "var(--color-line-strong)" }}
+                  tick={{ fontSize: 11, fill: "#252923", fontFamily: "var(--font-ibm-plex-mono)" }}
+                  axisLine={{ stroke: "#123C32", strokeWidth: 1.5 }}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 12, fill: "var(--color-ink-muted)" }}
+                  tick={{ fontSize: 11, fill: "#252923", fontFamily: "var(--font-ibm-plex-mono)" }}
                   axisLine={false}
                   tickLine={false}
                   width={40}
@@ -195,91 +212,106 @@ export default function InsightsPage() {
                 <Tooltip
                   formatter={(v) => [`${v} ${t("common.days")}`, t("climatePage.drySpellRisk")]}
                   contentStyle={{
-                    borderRadius: 8,
-                    border: "1px solid var(--color-line-strong)",
+                    borderRadius: 6,
+                    border: "2px solid #123C32",
                     fontSize: 12,
-                    backgroundColor: "var(--color-surface-raised)",
+                    fontFamily: "var(--font-ibm-plex-mono)",
+                    backgroundColor: "#F4F0E5",
+                    boxShadow: "3px 3px 0px #123C32",
                   }}
                 />
                 <Line
                   type="monotone"
                   dataKey="drySpellDays"
-                  stroke="var(--color-earth)"
+                  stroke="#E6A52E"
                   strokeWidth={2.5}
-                  dot={{ r: 3, fill: "var(--color-earth)" }}
+                  dot={{ r: 3, fill: "#123C32" }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </div>
 
         {/* District frequency */}
-        <Card tone="default">
-          <CardHeader
-            icon={Droplets}
-            title={t("insights.drySpellFrequency")}
-            description={t("insights.drySpellFrequencyDesc")}
-          />
-          <ul className="mt-5 space-y-3">
+        <div className="rounded-xl border-2 border-[#123C32] bg-white p-6 shadow-[4px_4px_0px_#123C32]">
+          <div className="border-b-2 border-[#123C32]/15 pb-4">
+            <div className="flex items-center gap-2">
+              <Droplets size={18} className="text-[#2878A5]" />
+              <h3 className="font-display text-base font-bold text-[#123C32]">
+                {t("insights.drySpellFrequency")}
+              </h3>
+            </div>
+            <p className="font-sans text-xs text-[#252923]/70 mt-1">
+              {t("insights.drySpellFrequencyDesc")}
+            </p>
+          </div>
+
+          <ul className="mt-5 space-y-3 font-mono text-xs">
             {drySpellFrequencyByDistrict.map((d) => (
               <li key={d.districtId} className="flex items-center gap-3">
-                <span className="w-28 shrink-0 text-sm font-semibold text-ink">
+                <span className="w-28 shrink-0 font-bold text-[#252923]">
                   {d.districtName}
                 </span>
-                <div className="h-3 flex-1 overflow-hidden rounded-full bg-paper-deep">
+                <div className="h-3 flex-1 overflow-hidden rounded-full border border-[#123C32]/20 bg-[#F4F0E5]">
                   <div
                     className="h-full rounded-full transition-all duration-700 ease-out"
                     style={{
                       width: `${(d.avgDrySpellDays / 30) * 100}%`,
                       background:
                         d.avgDrySpellDays > 20
-                          ? "var(--color-risk-critical)"
+                          ? "#C7473B"
                           : d.avgDrySpellDays > 14
-                          ? "var(--color-risk-moderate)"
-                          : "var(--color-risk-low)",
+                          ? "#E6B83F"
+                          : "#3B8B61",
                     }}
                   />
                 </div>
-                <span className="w-12 shrink-0 text-right text-xs font-semibold tabular text-ink-muted">
-                  {d.avgDrySpellDays} {t("common.days")}
+                <span className="w-16 shrink-0 text-right font-bold text-[#123C32]">
+                  {d.avgDrySpellDays} d
                 </span>
               </li>
             ))}
           </ul>
-        </Card>
+        </div>
       </div>
 
-      {/* ── Crop Risk Patterns ──────────────────────────────── */}
-      <Card tone="default">
-        <CardHeader
-          icon={Sprout}
-          title={t("insights.cropRiskPatterns")}
-          description={t("insights.cropRiskPatternsDesc")}
-        />
+      {/* ── Crop Risk Patterns ── */}
+      <div className="rounded-xl border-2 border-[#123C32] bg-white p-6 shadow-[4px_4px_0px_#123C32]">
+        <div className="border-b-2 border-[#123C32]/15 pb-4">
+          <div className="flex items-center gap-2">
+            <Sprout size={18} className="text-[#123C32]" />
+            <h3 className="font-display text-lg font-bold text-[#123C32]">
+              {t("insights.cropRiskPatterns")}
+            </h3>
+          </div>
+          <p className="font-sans text-xs text-[#252923]/70 mt-1">
+            {t("insights.cropRiskPatternsDesc")}
+          </p>
+        </div>
+
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {cropRiskPatterns.map((c, i) => {
             const b = getBlock(c.blockId);
-            const blockName = b ? pickName(b, language) : c.blockId;
+            const bName = b ? pickName(b, language) : c.blockId;
             return (
               <div
                 key={i}
-                className="rounded-lg border border-line bg-surface-raised p-4 transition-shadow hover:shadow-xs"
+                className="rounded-lg border-2 border-[#123C32]/20 bg-[#F4F0E5] p-4 transition hover:border-[#123C32]"
               >
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-forest" />
-                  <span className="font-serif text-sm font-semibold text-ink">
-                    {blockName}
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-sm font-bold text-[#123C32]">{bName}</span>
+                  <span className="rounded border border-[#123C32]/30 bg-white px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-[#123C32]">
+                    {t(c.cropKey)}
                   </span>
-                  <span className="text-xs text-ink-muted">· {t(c.cropKey)}</span>
                 </div>
-                <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+                <p className="mt-2 font-sans text-xs leading-relaxed text-[#252923]/80">
                   {t(c.patternKey)}
                 </p>
               </div>
             );
           })}
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

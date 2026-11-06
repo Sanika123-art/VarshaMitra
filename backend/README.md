@@ -133,6 +133,7 @@ The service will start at `http://127.0.0.1:8000`.
 | `GET` | `/api/v1/rainfall/source-status` | Operational status & required credentials for all providers |
 | `GET` | `/api/v1/climate/indicators/{block_id}` | Deterministic agro-climatic indicators suite (`?window_days=14&provider=...`) |
 | `GET` | `/api/v1/climate/ml-boundary` | Formal ML feature/target contracts and temporal evaluation protocol |
+| `GET` | `/api/v1/risk/summary` | Bulk regional risk assessment for all 15 blocks with concurrency limiter & TTL cache (`?window_days=14&provider=...`) |
 | `GET` | `/api/v1/risk/{block_id}` | Explainable agro-climatic hazard risk assessment with drivers & limitations |
 | `GET` | `/api/v1/dataset/inventory` | Catalog of all 8 evaluated candidate & integrated climate data sources |
 | `POST`| `/api/v1/dataset/ingest` | Incremental historical reanalysis ingestion into local SQLite storage |
@@ -325,4 +326,6 @@ Repeated executions automatically skip identical records (deduplication) without
 | `NUGEN_MODEL` | `string` | `"Qwen/Qwen2.5-0.5B-Instruct"` | LLM model identifier |
 | `NUGEN_TIMEOUT_SECONDS` | `float` | `12.0` | Request timeout in seconds |
 | `NUGEN_MAX_RETRIES` | `integer` | `2` | Bounded retries for transient HTTP errors |
+| `RISK_SUMMARY_CACHE_TTL_SECONDS` | `integer` | `900` | In-memory TTL cache duration for regional risk evaluations |
+| `RISK_SUMMARY_CONCURRENCY` | `integer` | `4` | Concurrency limit for parallel block evaluations |
 

@@ -320,14 +320,45 @@ RAW_REGIONAL_SOIL: Dict[str, Dict] = {
 
 
 def get_regional_soil_profile(block_id: str) -> RegionalSoilSummaryResponse:
-    """Retrieve verified regional soil profile for an administrative block."""
-    raw = RAW_REGIONAL_SOIL.get(block_id.strip().lower())
+    """Retrieve verified regional soil profile for an administrative block or resolved location."""
+    key = block_id.strip().lower()
+    raw = RAW_REGIONAL_SOIL.get(key)
     if not raw:
-        # Default representative semi-arid Vertisol for fallback
+        # Check if location_service knows this block or its district
+        from app.services.location_service import location_service
+        block = location_service.get_block(key)
+        location_name = block.name if block else key.capitalize()
+        district_name = block.district_name if block else "Maharashtra"
+        district_id = block.district_id if block else ""
+
+        # Konkan Coastal Agro-Zone (Raigad, Ratnagiri, Sindhudurg, Thane, Palghar)
+        if district_id in {"raigad", "ratnagiri", "sindhudurg", "thane", "palghar"}:
+            return RegionalSoilSummaryResponse(
+                location_id=key,
+                location_name=location_name,
+                district_name=district_name,
+                source=SoilDataSource.REGIONAL_ESTIMATE,
+                dataset_name="ICAR-NBSS&LUP Konkan Coastal Lateritic & Alluvial Series",
+                spatial_resolution="Regional series generalization",
+                depth_layer="0-30cm",
+                dominant_texture=SoilTextureClass.SANDY_LOAM,
+                clay_fraction_pct=18.0,
+                sand_fraction_pct=62.0,
+                silt_fraction_pct=20.0,
+                topsoil_ph=6.2,
+                organic_carbon_pct=0.92,
+                cation_exchange_capacity=18.0,
+                available_water_capacity_mm_m=85.0,
+                drainage_class="well_drained",
+                uncertainty_note="Konkan coastal lateritic/alluvial tract; high permeability and leaching, suited for rice, pulses, and horticulture.",
+                retrieved_at=datetime.now(timezone.utc),
+            )
+
+        # Default representative semi-arid Vertisol for Deccan Plateau & Vidarbha
         return RegionalSoilSummaryResponse(
-            location_id=block_id,
-            location_name=block_id.capitalize(),
-            district_name="Maharashtra",
+            location_id=key,
+            location_name=location_name,
+            district_name=district_name,
             source=SoilDataSource.REGIONAL_ESTIMATE,
             dataset_name="ICAR-NBSS&LUP Regional Generalised Vertisol Benchmark",
             spatial_resolution="Regional series generalization",
@@ -341,7 +372,7 @@ def get_regional_soil_profile(block_id: str) -> RegionalSoilSummaryResponse:
             cation_exchange_capacity=40.0,
             available_water_capacity_mm_m=140.0,
             drainage_class="moderately_drained",
-            uncertainty_note="Broad Deccan plateau Vertisol baseline; site-specific calibration pending.",
+            uncertainty_note=f"Broad Deccan plateau Vertisol baseline for {district_name}; site-specific calibration pending.",
             retrieved_at=datetime.now(timezone.utc),
         )
 

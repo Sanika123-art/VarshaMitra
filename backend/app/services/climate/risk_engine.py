@@ -11,6 +11,7 @@ from app.core.climate_constants import (
     HEAVY_RAIN_THRESHOLD_MM,
     MILD_DRY_SPELL_DAYS,
     MINIMUM_DATA_COVERAGE_RATIO,
+    MONSOON_SEASON_MONTHS,
     RISK_ENGINE_METHOD_VERSION,
     SIGNIFICANT_DRY_SPELL_DAYS,
     VERY_HEAVY_RAIN_THRESHOLD_MM,
@@ -96,7 +97,7 @@ def assess_climate_risk(
                 "Provisional Heuristic Model: Risk cannot be authoritatively calculated without minimum 75% valid data points."
             ),
             limitations=(
-                "Assessment aborted due to sensor blackout or missing provider records. "
+                "Assessment withheld: too few valid daily values in the window (provider outage or missing records). "
                 "Risk evaluation is withheld to prevent false alarms or missed hazard warnings."
             ),
         )
@@ -105,7 +106,8 @@ def assess_climate_risk(
     if data_quality.coverage_ratio >= 0.90 and data_quality.freshness_status == QualityStatus.FRESH:
         confidence = ConfidenceLevel.HIGH
         conf_rationale = (
-            f"High confidence: {data_quality.coverage_ratio * 100:.1f}% continuous coverage with fresh sensor verification."
+            f"High confidence: {data_quality.coverage_ratio * 100:.1f}% continuous data coverage; latest day flagged fresh. "
+            "Confidence reflects data completeness only, not the accuracy of the underlying source."
         )
     elif data_quality.coverage_ratio >= 0.75:
         confidence = ConfidenceLevel.MEDIUM
@@ -122,6 +124,11 @@ def assess_climate_risk(
     drivers: List[RiskDriver] = []
     overall_level = RiskLevel.LOW
 
+    # Season context. Dry-spell and rainfall-departure rules were written for in-season (June-September)
+    # monitoring. Outside the monsoon a rainless spell is normal dry-season weather, not crop stress, so those
+    # rules are not applied. Heavy-rain rules apply in every month.
+    in_season = end_date.month in MONSOON_SEASON_MONTHS
+
     # Consecutive dry day indicators
     streak = max(dry_spell.max_consecutive_dry_days, dry_spell.current_consecutive_dry_days)
 
@@ -129,11 +136,11 @@ def assess_climate_risk(
     max_rain = heavy_rain.max_single_day_mm
     deluge_days = heavy_rain.heavy_rain_days_count
 
-    # Anomaly indicator
-    dep = anomaly.departure_pct
+    # Anomaly indicator (departure only meaningful for the in-season rainfall pattern)
+    dep = anomaly.departure_pct if in_season else None
 
     # --- Rule Tier A: CRITICAL ---
-    if streak >= CRITICAL_DRY_SPELL_DAYS:
+    if in_season and streak >= CRITICAL_DRY_SPELL_DAYS:
         overall_level = RiskLevel.CRITICAL
         drivers.append(
             RiskDriver(
@@ -156,7 +163,7 @@ def assess_climate_risk(
                 contribution="primary",
             )
         )
-    elif streak >= 10 and dep is not None and dep <= -50.0:
+    elif in_season and streak >= 10 and dep is not None and dep <= -50.0:
         overall_level = RiskLevel.CRITICAL
         drivers.append(
             RiskDriver(
@@ -169,7 +176,7 @@ def assess_climate_risk(
 
     # --- Rule Tier B: HIGH ---
     if overall_level != RiskLevel.CRITICAL:
-        if streak >= SIGNIFICANT_DRY_SPELL_DAYS:
+        if in_season and streak >= SIGNIFICANT_DRY_SPELL_DAYS:
             overall_level = RiskLevel.HIGH
             drivers.append(
                 RiskDriver(
@@ -212,7 +219,7 @@ def assess_climate_risk(
 
     # --- Rule Tier C: MODERATE ---
     if overall_level not in (RiskLevel.CRITICAL, RiskLevel.HIGH):
-        if streak >= MILD_DRY_SPELL_DAYS:
+        if in_season and streak >= MILD_DRY_SPELL_DAYS:
             overall_level = RiskLevel.MODERATE
             drivers.append(
                 RiskDriver(
@@ -249,17 +256,42 @@ def assess_climate_risk(
 
     # --- Rule Tier D: LOW ---
     if overall_level == RiskLevel.LOW:
-        drivers.append(
-            RiskDriver(
-                code="adequateRainfallBalance",
-                name="Stable Agro-Climatic Window",
-                evidence=(
-                    f"Cumulative {accumulation.total_mm:.1f} mm across {window_days} days; "
-                    f"longest dry spell was {streak} days with no heavy deluge events"
-                ),
-                contribution="primary",
+        if not in_season and streak >= MILD_DRY_SPELL_DAYS:
+            drivers.append(
+                RiskDriver(
+                    code="offSeasonDryWeather",
+                    name="Normal Dry-Season Weather",
+                    evidence=(
+                        f"{streak} consecutive dry days, but the June-September monsoon has ended; "
+                        "dry weather is normal in this season and is not treated as crop stress"
+                    ),
+                    contribution="primary",
+                )
             )
-        )
+        elif not in_season:
+            drivers.append(
+                RiskDriver(
+                    code="offSeasonStable",
+                    name="Quiet Off-Season Window",
+                    evidence=(
+                        f"Cumulative {accumulation.total_mm:.1f} mm across {window_days} days outside the "
+                        "June-September monsoon; no heavy-rain event"
+                    ),
+                    contribution="primary",
+                )
+            )
+        else:
+            drivers.append(
+                RiskDriver(
+                    code="adequateRainfallBalance",
+                    name="Stable Agro-Climatic Window",
+                    evidence=(
+                        f"Cumulative {accumulation.total_mm:.1f} mm across {window_days} days; "
+                        f"longest dry spell was {streak} days with no heavy deluge events"
+                    ),
+                    contribution="primary",
+                )
+            )
 
     return RiskAssessmentResponse(
         block_id=block_id,
@@ -275,13 +307,15 @@ def assess_climate_risk(
         risk_drivers=drivers,
         supporting_measurements=supporting_measurements,
         method_version=RISK_ENGINE_METHOD_VERSION,
+        in_monsoon_season=in_season,
         provisional_notice=(
             "Provisional Heuristic Model: Agro-climatic thresholds are derived from IMD agrometeorological rules "
             "and require verification by local Krishi Vigyan Kendra (KVK) agronomists before field operational deployment."
         ),
         limitations=(
-            "Derived strictly from historical daily precipitation observations. Soil moisture retention, crop phenology, "
+            "Derived from recent daily precipitation only (see data_provenance for the source and data type). "
+            "Soil moisture retention, crop phenology, "
             "evapotranspiration (PET), and local canal/well irrigation are not incorporated into this pure precipitation assessment. "
-            "Historical observations do not represent a future weather forecast."
+            "Past rainfall does not represent a future weather forecast."
         ),
     )

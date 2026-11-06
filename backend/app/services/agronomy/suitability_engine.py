@@ -81,24 +81,39 @@ def evaluate_crop_suitability(
         water_score = 30
         supporting.append("Assured perennial irrigation satisfies all critical growth stage moisture requirements")
     elif water_source == WaterSourceType.PROTECTIVE_IRRIGATION:
-        if crop.crop_id == "sugarcane":
+        if crop.crop_id in ("sugarcane", "banana"):
             water_score = 10
-            limiting.append("Sugarcane requires continuous assured irrigation; protective irrigation alone is insufficient")
+            limiting.append(f"{crop.name} requires continuous assured irrigation; protective irrigation alone is insufficient")
             interventions.append("Adopt subsurface drip irrigation with fertigation to maximize water-use efficiency")
+        elif crop.crop_category in ("horticulture", "vegetable"):
+            water_score = 24
+            supporting.append(f"Protective irrigation supports {crop.name} during dry spells, though drip irrigation is recommended for commercial yields")
         else:
             water_score = 28
             supporting.append("Protective irrigation (farm pond/well) provides effective insurance against intermittent dry spells")
     else:  # RAINFED
-        if crop.crop_id == "sugarcane":
+        if crop.crop_id in ("sugarcane", "banana"):
             water_score = 0
-            limiting.append("Sugarcane cannot be cultivated under pure rainfed conditions in Maharashtra")
-        elif crop.crop_id in ("pearl_millet", "pigeonpea", "sorghum"):
+            limiting.append(f"{crop.name} cannot be cultivated under pure rainfed conditions in Maharashtra")
+        elif crop.crop_category == "horticulture":
+            water_score = 8
+            limiting.append(f"Perennial fruit orchards ({crop.name}) face severe defoliation/dieback under pure rainfed drought conditions")
+            interventions.append("Establish a farm pond (shettale) and drip irrigation network before orchard plantation")
+        elif crop.crop_id in ("wheat", "potato"):
+            water_score = 5
+            limiting.append(f"{crop.name} cannot produce viable yield under purely rainfed Rabi conditions in Maharashtra")
+            interventions.append("Assured irrigation is mandatory for Rabi wheat/potato cultivation")
+        elif crop.crop_id in ("pearl_millet", "pigeonpea", "sorghum", "finger_millet", "green_gram", "black_gram", "safflower"):
             water_score = 28
             supporting.append(f"{crop.name} possesses high drought tolerance suitable for rainfed cultivation")
-        elif crop.crop_id in ("soybean", "cotton"):
+        elif crop.crop_id in ("soybean", "cotton", "groundnut", "sunflower", "sesame"):
             water_score = 20
             limiting.append(f"{crop.name} is vulnerable to moisture stress during flowering/pod development without protective irrigation")
             interventions.append("Implement Broad Bed Furrow (BBF) or contour bunding for in-situ soil moisture conservation")
+        elif crop.crop_id in ("rice", "tomato", "chilli", "onion"):
+            water_score = 12
+            limiting.append(f"{crop.name} has high moisture sensitivity; pure rainfed cultivation carries substantial risk during dry spells")
+            interventions.append("Adopt protective irrigation schedule or mulching with drip")
         else:
             water_score = 15
             limiting.append(f"{crop.name} has moderate water requirements and may experience yield penalties under rainfed dry spells")
@@ -110,7 +125,7 @@ def evaluate_crop_suitability(
     total_score = texture_score + ph_score + water_score + zone_score
 
     # Determine status
-    if crop.crop_id == "sugarcane" and water_source == WaterSourceType.RAINFED:
+    if (crop.crop_id in ("sugarcane", "banana") or crop.crop_category == "horticulture" or crop.crop_id in ("wheat", "potato")) and water_source == WaterSourceType.RAINFED:
         status = SuitabilityStatus.UNSUITABLE
         total_score = min(total_score, 35)
     elif total_score >= 75:
@@ -142,10 +157,18 @@ def assess_block_suitability(
     season: CropSeason,
     water_source: WaterSourceType = WaterSourceType.RAINFED,
     custom_date: Optional[date] = None,
+    target_crop_id: Optional[str] = None,
 ) -> SuitabilityAssessmentResponse:
-    """Assess suitability for all candidate crops for a block and season."""
+    """Assess suitability for all candidate crops for a block and season, optionally prioritizing a specific crop."""
     eval_date = custom_date or date.today()
     candidate_crops = list_supported_crops(season)
+
+    # If a specific target crop is requested (even if from another season, e.g. perennial fruit or Rabi crop), include it
+    if target_crop_id:
+        from app.data.crops_catalogue import get_crop_requirement
+        specific_crop = get_crop_requirement(target_crop_id)
+        if specific_crop and specific_crop.crop_id not in [c.crop_id for c in candidate_crops]:
+            candidate_crops.insert(0, specific_crop)
 
     results: List[CropSuitabilityResult] = []
     for crop in candidate_crops:
@@ -158,8 +181,13 @@ def assess_block_suitability(
         )
         results.append(res)
 
-    # Sort results by suitability score descending
-    results.sort(key=lambda x: (x.suitability_score or 0), reverse=True)
+    # Sort results by suitability score descending, but keep requested target crop at front if specified
+    if target_crop_id:
+        from app.data.crops_catalogue import CROP_ALIASES
+        target_canonical = CROP_ALIASES.get(target_crop_id.lower().strip(), target_crop_id.lower().strip())
+        results.sort(key=lambda x: (x.crop_id == target_canonical, x.suitability_score or 0), reverse=True)
+    else:
+        results.sort(key=lambda x: (x.suitability_score or 0), reverse=True)
 
     soil_source = SoilDataSource.FARMER_LAB_TEST if field_test else SoilDataSource.REGIONAL_ESTIMATE
 

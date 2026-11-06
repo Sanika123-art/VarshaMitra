@@ -1,8 +1,8 @@
 // Core domain types for the VarshaMitra climate intelligence prototype.
 // These shapes are designed so a real backend/ML service can be swapped in
-// later without touching the UI layer — see FUTURE_BACKEND.md.
+// later without touching the UI layer — see ARCHITECTURE.md.
 
-export type RiskLevel = "low" | "moderate" | "high" | "critical";
+export type RiskLevel = "low" | "moderate" | "high" | "critical" | "insufficient_data";
 
 export type Language = "en" | "mr";
 
@@ -38,8 +38,16 @@ export interface SelectedLocation {
   stateName: string;
   districtId: string;
   districtName: string;
+  districtNameMr?: string;
   blockId: string;
   blockName: string;
+  blockNameMr?: string;
+  latitude?: number;
+  longitude?: number;
+  taluka?: string | null;
+  postalCode?: string | null;
+  displayName?: string | null;
+  isDynamic?: boolean;
 }
 
 export type ForecastHorizon = 7 | 14 | 30;

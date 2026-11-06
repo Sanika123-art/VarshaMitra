@@ -29,10 +29,10 @@ def generate_deterministic_explanation(
     
     # Extract climate context signals
     ctx = advisory.climate_context
-    dry_spell_days = ctx.get("dry_spell_current_days", 0)
-    dry_spell_sev = ctx.get("dry_spell_severity", "none")
-    rain_14d = ctx.get("accumulation_14d_mm", 0.0)
-    heavy_rain_days = ctx.get("heavy_rain_days_count", 0)
+    dry_spell_days = ctx.get("dry_spell_longest_days", ctx.get("dry_spell_current_days", 0)) or 0
+    rain_14d = ctx.get("accumulation_14d_mm", 0.0) or 0.0
+    heavy_rain_days = ctx.get("heavy_rain_days_count", 0) or 0
+    in_season = bool(ctx.get("in_monsoon_season", True))
 
     # 1. SUMMARY
     if is_mr:
@@ -62,13 +62,16 @@ def generate_deterministic_explanation(
     if is_mr:
         signals_list = []
         if dry_spell_days >= 7:
-            signals_list.append(f"मागील सलग {dry_spell_days} दिवस पावसाचा खंड (पातळी: {dry_spell_sev})")
+            signals_list.append(
+                f"मागील १४ दिवसांत सलग {dry_spell_days} दिवस पावसाचा खंड"
+                + ("" if in_season else " (मान्सूननंतरच्या कोरड्या हंगामात हे सामान्य आहे)")
+            )
         if rain_14d > 0:
             signals_list.append(f"मागील १४ दिवसांचा एकूण पाऊस {rain_14d:.1f} मि.मी.")
         if heavy_rain_days > 0:
             signals_list.append(f"अतिवृष्टीचे दिवस: {heavy_rain_days}")
         if not signals_list:
-            signals_list.append("हवामान व पर्जन्यमान सामान्य कक्षेत नोंदवले गेले आहे")
+            signals_list.append("गेल्या १४ दिवसांत कोणताही विशेष पावसाचा संकेत नाही")
         
         signal_explanation = (
             f"स्थानिक हवामान निर्देशकांनुसार: " + "; ".join(signals_list) + f". "
@@ -77,17 +80,20 @@ def generate_deterministic_explanation(
     else:
         signals_list = []
         if dry_spell_days >= 7:
-            signals_list.append(f"Active continuous dry spell of {dry_spell_days} days (Severity: {dry_spell_sev})")
+            signals_list.append(
+                f"Longest rainless spell in the last 14 days: {dry_spell_days} days"
+                + ("" if in_season else " (normal in the post-monsoon dry season)")
+            )
         if rain_14d > 0:
             signals_list.append(f"14-day rainfall accumulation of {rain_14d:.1f} mm")
         if heavy_rain_days > 0:
             signals_list.append(f"{heavy_rain_days} day(s) of heavy rainfall (>64.5 mm/day)")
         if not signals_list:
-            signals_list.append("Rainfall conditions within normal seasonal bounds")
+            signals_list.append("No notable rainfall signal in the last 14 days")
 
         signal_explanation = (
-            f"Observed weather signals: " + "; ".join(signals_list) + f". "
-            f"This climatic window directly impacts {crop_name} during the {stage_name} phase."
+            f"Recent weather (model-based estimate, not a rain-gauge reading): " + "; ".join(signals_list) + f". "
+            f"This is background for the {crop_name} {stage_name} stage."
         )
 
     # 3. REASONING SUMMARY
@@ -106,7 +112,7 @@ def generate_deterministic_explanation(
     else:
         action_explanation = (
             f"Primary action: {primary.primary_action_en} "
-            f"Executing this intervention protects crop development and mitigates climate stress. "
+            f"This is a rule-based recommendation, not a guarantee of yield. "
             f"Agronomic source: {primary.rule_id} ({primary.provenance})."
         )
 

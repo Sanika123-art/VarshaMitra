@@ -122,9 +122,10 @@ class ExplanationService:
             "agronomic_reason": primary.plain_language_reason_mr if is_mr else primary.plain_language_reason_en,
             "climate_signals": {
                 "accumulation_14d_mm": ctx.get("accumulation_14d_mm"),
-                "dry_spell_current_days": ctx.get("dry_spell_current_days"),
-                "dry_spell_severity": ctx.get("dry_spell_severity"),
+                "longest_dry_spell_days_in_window": ctx.get("dry_spell_longest_days"),
                 "heavy_rain_days_count": ctx.get("heavy_rain_days_count"),
+                "in_monsoon_season": ctx.get("in_monsoon_season"),
+                "overall_risk_level": ctx.get("overall_risk_level"),
             },
             "source_citation": primary.provenance,
             "rule_id": primary.rule_id,
@@ -220,40 +221,6 @@ class ExplanationService:
                 model_used=self.client.model if self.client.is_configured else None,
                 language=lang_code,
             )
-
-    def explain_advisory_by_context(
-        self,
-        location_id: str,
-        crop_id: str,
-        stage_id: str,
-        language: str = "en",
-    ) -> ExplanationResponse:
-        """Resolve canonical advisory server-side and generate explanation."""
-        block = location_service.get_block(location_id)
-        if not block:
-            raise ValueError(f"Block '{location_id}' not found")
-        crop = crop_service.get_crop(crop_id)
-        if not crop:
-            raise ValueError(f"Crop '{crop_id}' not found")
-        stage = crop_service.get_stage(crop_id, stage_id)
-        if not stage:
-            raise ValueError(f"Stage '{stage_id}' not found")
-
-        acc = AccumulationIndicator(total_mm=30.0, valid_days_count=14, missing_days_count=0, daily_average_mm=2.1)
-        dry = DrySpellIndicator(threshold_mm=2.5, dry_days_count=15, max_consecutive_dry_days=15, current_consecutive_dry_days=15, severity="critical")
-        heavy = HeavyRainIndicator(threshold_mm=64.5, heavy_rain_days_count=0, max_single_day_mm=10.0, event_dates=[], has_heavy_rain_event=False)
-
-        advisory = generate_crop_advisories(
-            block=block,
-            crop=crop,
-            stage=stage,
-            climate_risk=None,
-            accumulation=acc,
-            dry_spell=dry,
-            heavy_rain=heavy,
-            language=language,
-        )
-        return self.explain_advisory(advisory=advisory, language=language)
 
     def _build_response(
         self,

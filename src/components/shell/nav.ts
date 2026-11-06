@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Map as MapIcon,
   MapPin,
+  Sparkles,
   Sprout,
   TrendingUp,
   Wheat,
@@ -47,6 +48,7 @@ export function navFor(role: UserRole): NavGroup[] {
     {
       items: [
         { href: "/farmer/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
+        { href: "/farmer/saarthi", labelKey: "nav.saarthi", icon: Sparkles },
         { href: "/farmer/climate", labelKey: "nav.climateIntelligence", icon: CloudRain },
         { href: "/farmer/risk-map", labelKey: "nav.riskMap", icon: MapIcon },
         { href: "/farmer/advisory", labelKey: "nav.cropAdvisory", icon: Sprout },

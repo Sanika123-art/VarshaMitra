@@ -1,5 +1,6 @@
 """Soil property and soil health management service."""
 
+import contextlib
 from datetime import datetime, timezone
 import sqlite3
 import uuid
@@ -22,9 +23,19 @@ class SoilService:
     def __init__(self):
         self._init_field_test_db()
 
+    @contextlib.contextmanager
+    def _connection(self):
+        conn = sqlite3.connect(dataset_storage.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
+
     def _init_field_test_db(self) -> None:
         """Create table for field-level soil tests in persistent SQLite database."""
-        with sqlite3.connect(dataset_storage.db_path) as conn:
+        with self._connection() as conn:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS field_soil_tests (
@@ -135,7 +146,7 @@ class SoilService:
         profile_id = f"soil_{uuid.uuid4().hex[:12]}"
         now = datetime.now(timezone.utc)
 
-        with sqlite3.connect(dataset_storage.db_path) as conn:
+        with self._connection() as conn:
             conn.execute(
                 """
                 INSERT INTO field_soil_tests (
@@ -215,8 +226,7 @@ class SoilService:
 
     def get_latest_field_test(self, location_id: str) -> Optional[FieldSoilTestResponse]:
         """Retrieve most recent field test for a location if available."""
-        with sqlite3.connect(dataset_storage.db_path) as conn:
-            conn.row_factory = sqlite3.Row
+        with self._connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """

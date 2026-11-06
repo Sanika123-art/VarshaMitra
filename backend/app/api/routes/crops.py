@@ -36,9 +36,11 @@ router = APIRouter(prefix="/crops", tags=["Crop Intelligence & Sowing Engine"])
 )
 async def list_crops(
     season: Optional[CropSeason] = Query(None, description="Optional season filter (kharif, rabi, summer, perennial)"),
+    category: Optional[str] = Query(None, description="Optional category filter (cereal, pulse, oilseed, vegetable, horticulture, fibre, commercial)"),
+    search: Optional[str] = Query(None, description="Search query against crop name, Marathi name, or variety"),
 ) -> List[CropRequirement]:
-    """List crops catalogue."""
-    return crop_service.list_crops(season)
+    """List crops catalogue with optional filtering."""
+    return crop_service.list_crops(season=season, category=category, search=search)
 
 
 @router.get(
@@ -70,6 +72,7 @@ async def assess_crop_suitability(
     block_id: str,
     season: CropSeason = Query(default=CropSeason.KHARIF, description="Target cropping season"),
     water_source: WaterSourceType = Query(default=WaterSourceType.RAINFED, description="Irrigation availability tier"),
+    crop_id: Optional[str] = Query(None, description="Optional specific candidate crop ID to evaluate"),
 ) -> SuitabilityAssessmentResponse:
     """Assess crop suitability for a block."""
     block = location_service.get_block(block_id)
@@ -88,6 +91,7 @@ async def assess_crop_suitability(
         field_test=field_test,
         season=season,
         water_source=water_source,
+        target_crop_id=crop_id,
     )
 
 
@@ -125,6 +129,7 @@ async def assess_sowing_conditions(
     provider_instance = get_rainfall_provider(provider)
     obs_series = await provider_instance.get_recent_observations(block=block, days=14)
     acc = compute_accumulation(obs_series.observations)
+    acc_7d = compute_accumulation(obs_series.observations[-7:])
     dry = compute_dry_spells(obs_series.observations)
     heavy = compute_heavy_rain(obs_series.observations)
 
@@ -144,4 +149,5 @@ async def assess_sowing_conditions(
         forecast=forecast_series,
         dry_spell=dry,
         heavy_rain=heavy,
+        accumulation_7d=acc_7d,
     )

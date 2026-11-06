@@ -8,11 +8,14 @@ from pydantic import BaseModel, ConfigDict, Field
 class CoverageStatus(str, Enum):
     """Honest representation of location coverage status."""
     CURATED_FOCUS_SUBSET = "curated_focus_subset"
+    STATEWIDE_GAZETTEER = "statewide_gazetteer"
+    DYNAMIC_RESOLVED = "dynamic_resolved"
     PENDING_GAZETTEER_INGESTION = "pending_gazetteer_ingestion"
 
 
 class CoordinatesPrecision(str, Enum):
     """Disclaimer on geometric precision of coordinates."""
+    EXACT_GEOCODED_POINT = "exact_geocoded_point"
     APPROXIMATE_CENTROID = "approximate_centroid"
     SURVEY_GRADE_POLYGON = "survey_grade_polygon"
 
@@ -96,3 +99,52 @@ class LocationListResponse(BaseModel):
     count: int = Field(..., description="Number of records returned")
     items: List[BlockSummary] = Field(..., description="List of administrative blocks")
     coverage_notice: str = Field(..., description="Brief data coverage notice")
+
+
+class LocationResolutionSource(str, Enum):
+    """Source that resolved the location."""
+    NOMINATIM_OSM = "nominatim_osm"
+    LOCAL_GAZETTEER = "local_gazetteer"
+    REVERSE_GEOCODE = "reverse_geocode"
+    COORDINATE_DIRECT = "coordinate_direct"
+
+
+class LocationSearchItem(BaseModel):
+    """Single location match for search autocomplete."""
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(..., description="Normalized location identifier (e.g. 'loc_alibaug' or 'maval')")
+    name: str = Field(..., description="Primary location/place name in English")
+    name_mr: str = Field(..., description="Location name in Marathi")
+    taluka: Optional[str] = Field(None, description="Taluka / sub-district name if resolved")
+    district_id: str = Field(..., description="District identifier (e.g. 'raigad', 'pune')")
+    district_name: str = Field(..., description="District name in English")
+    district_name_mr: str = Field(..., description="District name in Marathi")
+    state_id: str = Field(default="mh", description="State identifier")
+    state_name: str = Field(default="Maharashtra", description="State name")
+    latitude: float = Field(..., description="WGS84 latitude")
+    longitude: float = Field(..., description="WGS84 longitude")
+    postal_code: Optional[str] = Field(None, description="6-digit Indian Postal PIN code if available")
+    display_name: str = Field(..., description="Full descriptive location string (e.g. 'Alibaug, Raigad, Maharashtra')")
+    precision: CoordinatesPrecision = Field(default=CoordinatesPrecision.APPROXIMATE_CENTROID)
+    source: LocationResolutionSource = Field(default=LocationResolutionSource.LOCAL_GAZETTEER)
+
+
+class LocationSearchResponse(BaseModel):
+    """Response envelope for place search."""
+    model_config = ConfigDict(extra="forbid")
+
+    query: str = Field(..., description="Search query string")
+    count: int = Field(..., description="Number of matching locations")
+    results: List[LocationSearchItem] = Field(default_factory=list, description="Ranked location matches")
+
+
+class LocationResolveRequest(BaseModel):
+    """Request payload to resolve or register any arbitrary location or coordinates."""
+    model_config = ConfigDict(extra="forbid")
+
+    query: Optional[str] = Field(None, description="Place name, town, village, or taluka")
+    postal_code: Optional[str] = Field(None, description="6-digit Indian Postal PIN code")
+    latitude: Optional[float] = Field(None, description="Latitude for direct coordinate resolution")
+    longitude: Optional[float] = Field(None, description="Longitude for direct coordinate resolution")
+

@@ -24,13 +24,55 @@ export interface BlockSummary {
 }
 
 export interface BlockDetail extends BlockSummary {
+  state_id?: string;
+  state_name?: string;
+  state_name_mr?: string;
   altitude_m?: number;
   agroclimatic_zone?: string;
-  historical_data_available: boolean;
+  historical_data_available?: boolean;
+  coordinates_precision?: string;
+  coverage_status?: string;
 }
 
 export interface DistrictDetail extends DistrictSummary {
   member_blocks: BlockDetail[];
+}
+
+export type LocationResolutionSource =
+  | "nominatim_osm"
+  | "local_gazetteer"
+  | "reverse_geocode"
+  | "coordinate_direct";
+
+export interface LocationSearchItem {
+  id: string;
+  name: string;
+  name_mr: string;
+  taluka?: string | null;
+  district_id: string;
+  district_name: string;
+  district_name_mr: string;
+  state_id: string;
+  state_name: string;
+  latitude: number;
+  longitude: number;
+  postal_code?: string | null;
+  display_name: string;
+  precision: string;
+  source: LocationResolutionSource;
+}
+
+export interface LocationSearchResponse {
+  query: string;
+  count: number;
+  results: LocationSearchItem[];
+}
+
+export interface LocationResolveRequest {
+  query?: string;
+  postal_code?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface ForecastItem {
@@ -92,6 +134,20 @@ export interface HeavyRainIndicator {
   event_dates: string[];
 }
 
+export interface DataProvenance {
+  data_type: "observation" | "reanalysis" | "model_analysis" | "forecast" | "synthetic_test";
+  provider_id: string;
+  provider_name: string;
+  dataset_name: string;
+  attribution: string;
+  spatial_resolution: string;
+  retrieved_at: string;
+  window_start: string;
+  window_end: string;
+  is_station_observation: boolean;
+  note: string;
+}
+
 export interface ClimateIndicatorsResponse {
   block_id: string;
   block_name: string;
@@ -105,20 +161,24 @@ export interface ClimateIndicatorsResponse {
   monsoon_onset: {
     threshold_mm?: number;
     consecutive_days?: number;
-    onset_detected: boolean;
-    onset_date?: string;
+    onset_detected?: boolean;
+    onset_date?: string | null;
     onset_probability?: number;
     status: string;
   };
   anomaly: {
     observed_mm?: number;
     normal_mm?: number;
+    baseline_normal_mm?: number;
     departure_pct?: number;
     departure_class?: string;
+    status?: string;
+    baseline_provenance?: string;
   };
-  data_quality?: any;
+  data_quality?: Record<string, unknown>;
   method_version?: string;
   retrieved_at?: string;
+  data_provenance?: DataProvenance;
 }
 
 export interface RiskDriver {
@@ -134,7 +194,7 @@ export interface RiskAssessmentResponse {
   block_id: string;
   block_name: string;
   district_name: string;
-  assessment_time?: string;
+  assessment_time: string;
   assessment_date?: string;
   window_days?: number;
   start_date?: string;
@@ -143,13 +203,16 @@ export interface RiskAssessmentResponse {
   confidence: "high" | "medium" | "low" | "none";
   confidence_rationale?: string;
   risk_drivers: RiskDriver[];
-  supporting_measurements?: Record<string, any>;
-  evidence_summary?: Record<string, any>;
+  supporting_measurements?: Record<string, unknown>;
+  evidence_summary?: Record<string, unknown>;
   methodology?: string;
   evaluation_method?: string;
   method_version?: string;
   provisional_notice?: string;
   limitations: string;
+  data_provenance?: DataProvenance;
+  season_note?: string;
+  in_monsoon_season?: boolean;
 }
 
 export interface RegionalSoilSummaryResponse {
@@ -204,6 +267,7 @@ export interface CropRequirement {
   max_soil_ph: number;
   suitable_textures: string[];
   sowing_soil_moisture_min_mm: number;
+  recommended_varieties?: string[];
   source_citation: string;
   publisher: string;
   version: string;
@@ -257,6 +321,8 @@ export interface SowingAssessmentResponse {
   forecast_summary: string;
   next_reassessment_date: string;
   limitations: string;
+  provenance?: string;
+  rule_version?: string;
 }
 
 export interface CropAdvisoryItem {
@@ -292,7 +358,7 @@ export interface CropAdvisoryResponse {
   generated_at: string;
   primary_advisory: CropAdvisoryItem;
   secondary_advisories: CropAdvisoryItem[];
-  climate_context: Record<string, any>;
+  climate_context: Record<string, unknown>;
   official_warning_disclaimer: string;
 }
 
@@ -334,3 +400,75 @@ export interface DatasetSummaryResponse {
   total_precipitation_mm?: number;
   storage_file?: string;
 }
+
+export interface RiskSummaryItem {
+  block_id: string;
+  block_name: string;
+  block_name_mr: string;
+  district_id: string;
+  district_name: string;
+  latitude: number;
+  longitude: number;
+  status: "ok" | "unavailable";
+  error?: string | null;
+  overall_risk?: RiskLevel | null;
+  confidence?: "high" | "medium" | "low" | "none" | null;
+  dry_spell_severity?: "none" | "mild" | "significant" | "critical" | null;
+  current_dry_days?: number | null;
+  heavy_rain_event?: boolean | null;
+  max_single_day_mm?: number | null;
+  accumulation_mm?: number | null;
+  monsoon_onset_status?: string | null;
+  coverage_ratio?: number | null;
+  window_start?: string | null;
+  window_end?: string | null;
+}
+
+export interface RiskSummaryResponse {
+  generated_at: string;
+  cached: boolean;
+  cache_age_seconds: number;
+  window_days: number;
+  provider: string;
+  count: number;
+  available_count: number;
+  items: RiskSummaryItem[];
+  coordinates_note: string;
+  method_version: string;
+  data_provenance?: DataProvenance;
+  provisional_notice: string;
+}
+
+export interface BlocksResponse {
+  count: number;
+  coverage_notice: string;
+  items: BlockSummary[];
+}
+
+export interface ChatMessageItem {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+  provider_status?: "nugen" | "engine_fallback" | "error" | string;
+  context_metadata?: Record<string, unknown> | null;
+}
+
+export interface ChatConversationItem {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  location_id?: string | null;
+  crop_id?: string | null;
+  stage_id?: string | null;
+  language: string;
+  latest_message?: string | null;
+  message_count: number;
+}
+
+export interface ChatConversationDetail extends ChatConversationItem {
+  messages: ChatMessageItem[];
+}
+

@@ -1,118 +1,132 @@
-# Architecture
+# System Architecture
 
-## Conceptual pipeline (future, full system)
+## 1. High-Level System Architecture
+
+VarshaMitra implements a decoupled, production-grade pairing between a high-performance Python FastAPI backend and a Next.js 16 App Router frontend:
 
 ```
-DATA SOURCES
-    ↓
-DATA PROCESSING
-    ↓
-CLIMATE PREDICTION ENGINE
-    ↓
-HYPERLOCAL RISK ENGINE
-    ↓
-AGRICULTURAL CONTEXT
-    ↓
-ADVISORY ENGINE
-    ↓
-WEB APPLICATION  ← you are here (this prototype)
+┌────────────────────────────────────────────────────────────────────────┐
+│                   Next.js 16 Frontend (Web & Mobile)                  │
+│   • Bilingual UI (EN / MR)  • MapLibre GL 5.1.0  • Recharts Visuals   │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ HTTP / JSON
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                   Central Typed API Client (src/lib/api)              │
+│   • api.searchLocations()   • api.reverseGeocodeLocation()             │
+│   • api.getForecast()       • api.getClimateRisk()                     │
+│   • api.getCropSuitability()• api.getSowingReadiness()                 │
+│   • api.getCropAdvisory()   • api.getAdvisoryExplanation()             │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ REST API
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                   FastAPI Backend Core (backend/app)                   │
+├───────────────────────────────────┬────────────────────────────────────┤
+│ 1. Geospatial & Location Engine   │ 2. Meteorological Ingestion Engine │
+│  • 36-District Gazetteer (~160 bl)│  • Open-Meteo High-Res Forecast    │
+│  • Maharashtra Nominatim Resolver │  • Multi-Decadal Historical Store  │
+│  • Dynamic Slug: geo_{lat}_{lon}  │  • SQLite Archive (1994–2024)      │
+├───────────────────────────────────┼────────────────────────────────────┤
+│ 3. Climate Indicators Suite       │ 4. Agronomic Rules & AI Engine     │
+│  • Accumulation (7/14/30-day)     │  • MPKV Rahuri / PDKV Akola Logic  │
+│  • Dry-Spell Severity Engine      │  • Vertisol / Laterite Soil Model  │
+│  • Heavy Rainfall Event Flagging  │  • Sowing Readiness Calibrator     │
+│  • Monsoon Onset Tracker          │  • NuGen LLM Grounded Explainers   │
+└───────────────────────────────────┴────────────────────────────────────┘
 ```
 
-Everything above "WEB APPLICATION" was the original roadmap. Across
-Phases 1–6, this repository implemented both the web application layer and
-the Python FastAPI backend service in [`backend/`](./backend/) (data processing,
-indicators suite, heuristic risk scoring, soil profiles, and crop suitability).
-See [`backend/README.md`](./backend/README.md) for detailed backend architecture.
+---
 
-## Frontend stack
+## 2. Statewide Location Resolution Pipeline
 
-- **Next.js 16** App Router, TypeScript, React 19
-- **Tailwind CSS v4** (CSS-first `@theme` tokens, see `src/app/globals.css`)
-- **react-leaflet / Leaflet** for the risk map
-- **Recharts** for rainfall/temperature/historical charts
-- **lucide-react** for icons
+The location engine allows any farmer in Maharashtra to resolve their exact location:
 
-## Folder structure
+```
+Farmer Input (Place Name, Village, PIN Code, Map Click, or GPS Coordinates)
+                               │
+                               ▼
+        Is the query a Lat/Lon coordinate pair?
+             /                           \
+          [YES]                         [NO]
+           │                              │
+           │                     Query Local Maharashtra
+           │                     Gazetteer (36 Districts, ~160 Talukas)
+           │                              │
+           │                     Found in Gazetteer?
+           │                         /        \
+           │                      [YES]       [NO]
+           │                       │           │
+           │                       │    Query OpenStreetMap Nominatim
+           │                       │    (Bounded to MH: 15.6-22.15°N, 72.6-80.9°E)
+           │                       │           │
+           ▼                       ▼           ▼
+   Validate Maharashtra Geographic Bounding Box
+                               │
+                               ▼
+     Generate Canonical Location Entity (BlockDetail)
+     ID: slug or dynamic geo_{lat}_{lon}
+                               │
+                               ▼
+     Register into In-Memory Dynamic Location Registry
+                               │
+                               ▼
+     All downstream routes (/rainfall, /risk, /crops/suitability, /advisories)
+     immediately evaluate for this location ID without 404s!
+```
 
+---
+
+## 3. Frontend Architecture
+
+### Structure & Modules
 ```
 src/
-  app/                        Next.js routes
-    page.tsx                  Landing page
-    login/page.tsx
-    location/page.tsx
+  app/                        # Next.js 16 App Router pages
+    page.tsx                  # Public landing page
+    login/page.tsx            # Role selection (Farmer / Officer)
+    location/page.tsx         # Statewide search, PIN code, GPS & 36-district hub
     farmer/
-      dashboard/page.tsx
-      climate/page.tsx
-      risk-map/page.tsx
-      advisory/page.tsx
-      crop/page.tsx
+      dashboard/page.tsx      # Calm daily decision dashboard
+      climate/page.tsx        # High-resolution forecast & indicators
+      risk-map/page.tsx       # Fullscreen MapLibre GL risk map
+      crop/page.tsx           # Crop selection, soil suitability & sowing readiness
+      advisory/page.tsx       # MPKV crop-stage advisory & NuGen explanations
     officer/
-      dashboard/page.tsx
-      risk-map/page.tsx
-    insights/page.tsx
-    about/page.tsx
-    layout.tsx                Providers + navbar/footer shell
-    globals.css                Design tokens
-
-  components/                 Shared, presentational UI
-    Navbar.tsx
-    Footer.tsx
-    LanguageSwitcher.tsx
-    RiskBadge.tsx
-    ui.tsx                     PrototypeTag, SectionHeading, ProbabilityCard, StatTile
-
-  features/
-    risk-map/
-      RiskMap.tsx              Leaflet map (client-only, dynamically imported)
-      RiskMapExperience.tsx    Layer selector + legend + search + panel shell
-      BlockPanel.tsx           "Why is this area at risk?" side panel
-      riskLayers.ts            Per-layer risk scoring/bucketing
-
-  data/                        Mock datasets + the prototype's "mock model"
-    locations.ts               Maharashtra → districts → blocks
-    crops.ts                   Crop + crop-stage catalogue
-    climate.ts                 Deterministic seeded forecast generator
-    advisories.ts               Rule-based advisory derivation
-    officer.ts                  Regional aggregates, alerts
-    insights.ts                  Historical mock trend data
-
-  i18n/
-    en.ts / mr.ts               Translation dictionaries (same shape)
-    LanguageContext.tsx         Provider + t()/tList() hooks, localStorage-backed
-
+      dashboard/page.tsx      # Regional administrative overview
+      risk-map/page.tsx       # Officer risk map with district drill-downs
+    insights/page.tsx         # SQLite dataset summary & multi-decadal trends
+    about/page.tsx            # Scientific provenance & institutional credits
+    globals.css               # Agricultural design tokens
+  components/                 # Modular design system (Cards, Badges, Buttons, Shell)
+  features/                   # Feature-specific implementations
+    risk-map/                 # MapLibre GL map, layers, and inspection panel
+    charts/                   # Recharts probability bands and bar charts
   hooks/
-    useAppState.tsx             Role, location, crop/stage — localStorage-backed
-
-  types/index.ts                Shared domain types
-  lib/utils.ts                  cn(), risk colour/label maps
+    useAppState.tsx           # Global state: active role, location, selected crop
+    useLocationLabel.ts       # Localized English & Marathi location formatter
+  lib/api/
+    client.ts                 # Centralized typed HTTP API client
+    types.ts                  # TypeScript mirrors of backend Pydantic schemas
+  i18n/
+    LanguageContext.tsx       # Bilingual provider (English & Marathi)
+    en.ts / mr.ts             # Translation dictionaries
+  data/
+    locations.ts              # Default fallback location coordinates
+    crops.ts                  # Presentation icons & translation keys
+    media.ts                  # Photography assets & crop thumbnails
 ```
 
-## State management
+### State Management
+- **`AppStateProvider`** (`src/hooks/useAppState.tsx`): Manages the farmer's active location (`SelectedLocation`), selected crop (`cropId`), growth stage (`stageId`), and user role (`role`), automatically hydrated from and persisted to `localStorage`.
+- **`LanguageProvider`** (`src/i18n/LanguageContext.tsx`): Reactive language toggle between English and Marathi (`mr`).
 
-Two small React context providers, both persisted to `localStorage`:
+---
 
-- **`LanguageProvider`** (`src/i18n/LanguageContext.tsx`) — current language,
-  `t(key, vars?)` and `tList(key, vars?)` for translated strings/arrays.
-- **`AppStateProvider`** (`src/hooks/useAppState.tsx`) — active role
-  (farmer/officer), selected location, selected crop + stage.
+## 4. Backend Architecture
 
-No global state library is used; the app is small enough that two contexts
-plus route-level `useState` cover it cleanly.
-
-## Why the mock data is structured this way
-
-`src/data/climate.ts` uses a seeded pseudo-random generator keyed by
-`blockId + horizon` so the same block always produces the same forecast shape
-across renders and reloads, instead of jittering randomly. `src/data/
-advisories.ts` derives one of four "concerns" (dry / wet / uncertain onset /
-stable) from a block's own probabilities, so the map colour, the dashboard
-headline, and the advisory wizard are always internally consistent for a
-given block — see `MOCK_DATA.md` for the full rationale.
-
-## Swapping in a real backend later
-
-Every data module in `src/data/` exports plain functions with the same
-signatures a real API client would have (e.g. `getForecast(blockId, horizon)`,
-`deriveAdvisory(blockId, cropId, stageId)`). Replacing a function body with a
-`fetch()` call to the endpoints sketched in `FUTURE_BACKEND.md` is the entire
-migration — no component above the data layer needs to change.
+### Design Philosophy
+1. **Authoritative Backend**: The backend is the single source of truth for all agricultural decisions, risk classifications, and meteorological evaluations. The frontend renders backend responses and never fabricates mock decision outputs.
+2. **Deterministic Baseline**: Core agricultural advisories, sowing windows, and risk alerts are computed using deterministic rules codified from agricultural universities (MPKV Rahuri, PDKV Akola).
+3. **Optional Explanatory LLM**: NuGen acts solely as an explanatory layer to translate complex agro-meteorological metrics into natural language; it never alters or overrides deterministic risk scores.
+4. **Resilient Geocoding**: Rate-limited, cached geocoding protects external providers while ensuring 100% Maharashtra statewide coverage.
