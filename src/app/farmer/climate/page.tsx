@@ -194,13 +194,13 @@ export default function ClimateIntelligencePage() {
 
         <div className="rounded-xl border-2 border-[#123C32] bg-white p-5 shadow-[4px_4px_0px_#123C32]">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/60">Dry-Spell Streak</span>
+            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]">Dry-Spell Streak</span>
             <span className="rounded border border-[#E6A52E] bg-[#E6A52E]/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-[#123C32]">
               {drySpellSeverity}
             </span>
           </div>
           <p className="mt-3 font-mono text-2xl font-black text-[#123C32]">
-            {dryDaysStreak} <span className="text-xs font-normal text-[#252923]/60">days</span>
+            {dryDaysStreak} <span className="text-xs font-normal text-[#252923]/80">days</span>
           </p>
           <p className="mt-1 font-sans text-xs text-[#252923]/70">
             Threshold: consecutive days with precipitation &lt; 2.5 mm.
@@ -209,7 +209,7 @@ export default function ClimateIntelligencePage() {
 
         <div className="rounded-xl border-2 border-[#123C32] bg-white p-5 shadow-[4px_4px_0px_#123C32]">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/60">Deluge Risk</span>
+            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]">Deluge Risk</span>
             <span className={`rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase ${
               heavyRainEvent
                 ? "border-[#C7473B] bg-[#C7473B]/10 text-[#C7473B]"

@@ -199,27 +199,27 @@ export default function OfficerDashboard() {
       {/* ── Key Metrics Summary Strip ── */}
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="rounded-xl border-2 border-[#123C32] bg-white p-4 shadow-[3px_3px_0px_#123C32]">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/60">Monitored Talukas</span>
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]">Monitored Talukas</span>
           <p className="mt-1 font-mono text-2xl font-black text-[#123C32]">{total}</p>
-          <p className="font-mono text-xs text-[#252923]/60">Across 36 Districts</p>
+          <p className="font-mono text-xs font-medium text-[#252923]/80">Across 36 Districts</p>
         </div>
 
         <div className="rounded-xl border-2 border-[#C7473B] bg-white p-4 shadow-[3px_3px_0px_#C7473B]">
           <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#C7473B]">Critical Alert Blocks</span>
           <p className="mt-1 font-mono text-2xl font-black text-[#C7473B]">{counts.critical}</p>
-          <p className="font-mono text-xs text-[#252923]/60">{Math.round((counts.critical / total) * 100)}% of state blocks</p>
+          <p className="font-mono text-xs font-medium text-[#252923]/80">{Math.round((counts.critical / total) * 100)}% of state blocks</p>
         </div>
 
         <div className="rounded-xl border-2 border-[#E58A38] bg-white p-4 shadow-[3px_3px_0px_#E58A38]">
           <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#E58A38]">High Risk Blocks</span>
           <p className="mt-1 font-mono text-2xl font-black text-[#E58A38]">{counts.high}</p>
-          <p className="font-mono text-xs text-[#252923]/60">{Math.round((counts.high / total) * 100)}% of state blocks</p>
+          <p className="font-mono text-xs font-medium text-[#252923]/80">{Math.round((counts.high / total) * 100)}% of state blocks</p>
         </div>
 
         <div className="rounded-xl border-2 border-[#3B8B61] bg-white p-4 shadow-[3px_3px_0px_#3B8B61]">
           <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#3B8B61]">Favorable / Low Risk</span>
           <p className="mt-1 font-mono text-2xl font-black text-[#3B8B61]">{counts.low}</p>
-          <p className="font-mono text-xs text-[#252923]/60">{Math.round((counts.low / total) * 100)}% of state blocks</p>
+          <p className="font-mono text-xs font-medium text-[#252923]/80">{Math.round((counts.low / total) * 100)}% of state blocks</p>
         </div>
       </div>
 
@@ -232,7 +232,7 @@ export default function OfficerDashboard() {
               {t("officer.riskDistribution")}
             </h2>
           </div>
-          <span className="font-mono text-xs text-[#252923]/60">
+          <span className="font-mono text-xs font-medium text-[#252923]">
             {t("officerDashboard.totalCoverage", { count: total })} (14-day evaluation cycle)
           </span>
         </div>

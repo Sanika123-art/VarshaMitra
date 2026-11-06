@@ -214,26 +214,26 @@ export default function LandingPage() {
                   <div>
                     <div className="flex items-center justify-center gap-1 text-[#2878A5]">
                       <Droplets size={14} />
-                      <span className="font-mono text-[10px] uppercase font-bold text-[#252923]/60">Rainfall</span>
+                      <span className="font-mono text-[10px] uppercase font-bold text-[#123C32]">Rainfall</span>
                     </div>
                     <p className="mt-1 font-mono text-base font-bold text-[#123C32]">28.4 mm</p>
-                    <p className="text-[10px] text-[#252923]/60">Past 48h</p>
+                    <p className="text-[10px] font-medium text-[#252923]/80">Past 48h</p>
                   </div>
                   <div>
                     <div className="flex items-center justify-center gap-1 text-[#E6A52E]">
                       <Thermometer size={14} />
-                      <span className="font-mono text-[10px] uppercase font-bold text-[#252923]/60">Temp</span>
+                      <span className="font-mono text-[10px] uppercase font-bold text-[#123C32]">Temp</span>
                     </div>
                     <p className="mt-1 font-mono text-base font-bold text-[#123C32]">29.2°C</p>
-                    <p className="text-[10px] text-[#252923]/60">Day Mean</p>
+                    <p className="text-[10px] font-medium text-[#252923]/80">Day Mean</p>
                   </div>
                   <div>
                     <div className="flex items-center justify-center gap-1 text-[#3B8B61]">
                       <Wind size={14} />
-                      <span className="font-mono text-[10px] uppercase font-bold text-[#252923]/60">Risk</span>
+                      <span className="font-mono text-[10px] uppercase font-bold text-[#123C32]">Risk</span>
                     </div>
                     <p className="mt-1 font-mono text-base font-bold text-[#3B8B61]">Low</p>
-                    <p className="text-[10px] text-[#252923]/60">Dry-spell: 12%</p>
+                    <p className="text-[10px] font-medium text-[#252923]/80">Dry-spell: 12%</p>
                   </div>
                 </div>
 
@@ -432,23 +432,23 @@ export default function LandingPage() {
       </section>
 
       {/* ────────────────────────────── MAHARASHTRA AGRO-CLIMATIC ZONES ─────── */}
-      <section className="border-t-2 border-[#123C32]/20 bg-[#123C32] py-16 text-[#F4F0E5] sm:py-20">
+      <section className="border-t-3 border-[#123C32] bg-[#0c251f] py-16 text-white sm:py-20">
         <div className="container-page">
           <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
             <div>
-              <span className="rounded border border-[#E6A52E] bg-[#E6A52E]/10 px-2.5 py-1 font-mono text-xs font-bold uppercase tracking-widest text-[#E6A52E]">
+              <span className="rounded border-2 border-[#E6A52E] bg-[#E6A52E]/15 px-3 py-1 font-mono text-xs font-bold uppercase tracking-widest text-[#E6A52E] shadow-xs">
                 State Agro-Climatic Intelligence
               </span>
-              <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-[#F4F0E5] sm:text-4xl">
+              <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
                 Tuned to Maharashtra&apos;s 9 Distinct Agricultural Zones
               </h2>
-              <p className="mt-2 max-w-xl font-sans text-sm text-[#F4F0E5]/80">
+              <p className="mt-2 max-w-xl font-sans text-sm text-white/90 leading-relaxed">
                 Rainfall patterns vary drastically from 4,000mm in the Western Ghats to less than 600mm in the rain shadow scarcity zone.
               </p>
             </div>
             <Link
               href="/location"
-              className="flex items-center gap-2 rounded-lg border-2 border-[#E6A52E] bg-[#E6A52E] px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-wider text-[#123C32] shadow-[3px_3px_0px_#000] hover:bg-white"
+              className="flex items-center gap-2 rounded-lg border-2 border-[#E6A52E] bg-[#E6A52E] px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-wider text-[#123C32] shadow-[3px_3px_0px_#000] hover:bg-white transition"
             >
               <span>Select Your Zone</span>
               <ArrowRight size={14} />
@@ -459,18 +459,22 @@ export default function LandingPage() {
             {filteredZones.map((zone) => (
               <div
                 key={zone.name}
-                className="rounded-lg border border-[#F4F0E5]/20 bg-black/25 p-5 backdrop-blur-xs transition hover:border-[#E6A52E]"
+                className="rounded-xl border-2 border-[#E6A52E]/40 bg-[#123C32] p-5 shadow-[4px_4px_0px_#000] transition hover:border-[#E6A52E]"
               >
-                <div className="flex items-center justify-between">
-                  <h3 className="font-display text-base font-bold text-[#F4F0E5]">{zone.name}</h3>
-                  <span className="font-mono text-xs font-bold text-[#E6A52E]">{zone.rainfall}</span>
+                <div className="flex items-center justify-between border-b border-white/15 pb-2.5">
+                  <h3 className="font-display text-base font-bold text-white">{zone.name}</h3>
+                  <span className="rounded bg-[#E6A52E] px-2 py-0.5 font-mono text-xs font-black text-[#123C32]">
+                    {zone.rainfall}
+                  </span>
                 </div>
-                <div className="mt-3 space-y-1.5 font-mono text-xs text-[#F4F0E5]/75">
-                  <p>
-                    <span className="text-[#F4F0E5]/50">Soil Profile:</span> {zone.soil}
+                <div className="mt-3 space-y-2 font-mono text-xs">
+                  <p className="leading-snug">
+                    <span className="text-[#E6A52E] font-bold">Soil Profile:</span>{" "}
+                    <span className="text-white font-medium">{zone.soil}</span>
                   </p>
-                  <p>
-                    <span className="text-[#F4F0E5]/50">Major Crops:</span> {zone.crops}
+                  <p className="leading-snug">
+                    <span className="text-[#E6A52E] font-bold">Major Crops:</span>{" "}
+                    <span className="text-white font-medium">{zone.crops}</span>
                   </p>
                 </div>
               </div>

@@ -105,31 +105,31 @@ export default function LoginPage() {
                     every farm acre.
                   </span>
                 </h1>
-                <p className="mt-4 max-w-lg font-sans text-sm leading-relaxed text-[#F4F0E5]/80 sm:text-base">
+                <p className="mt-4 max-w-lg font-sans text-sm leading-relaxed text-white/90 sm:text-base">
                   Real-time soil moisture profiles, dry-spell risk radar, and phenology-matched sowing recommendations tailored to Maharashtra&apos;s agro-climatic zones.
                 </p>
 
                 {/* Telemetry Strip */}
-                <div className="mt-6 grid grid-cols-3 gap-3 border-t border-[#F4F0E5]/15 pt-4">
-                  <div className="rounded border border-[#F4F0E5]/10 bg-black/20 p-2.5 backdrop-blur-xs">
-                    <p className="font-mono text-[10px] uppercase tracking-wider text-[#F4F0E5]/60">Grid Resolution</p>
-                    <p className="mt-0.5 font-mono text-sm font-bold text-[#F4F0E5]">Hyperlocal 0.05°</p>
+                <div className="mt-6 grid grid-cols-3 gap-3 border-t border-white/20 pt-4">
+                  <div className="rounded-lg border border-white/20 bg-black/40 p-2.5 backdrop-blur-xs">
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-[#E6A52E] font-bold">Grid Resolution</p>
+                    <p className="mt-0.5 font-mono text-sm font-bold text-white">Hyperlocal 0.05°</p>
                   </div>
-                  <div className="rounded border border-[#F4F0E5]/10 bg-black/20 p-2.5 backdrop-blur-xs">
-                    <p className="font-mono text-[10px] uppercase tracking-wider text-[#F4F0E5]/60">Districts Covered</p>
-                    <p className="mt-0.5 font-mono text-sm font-bold text-[#E6A52E]">36 Maharashtra</p>
+                  <div className="rounded-lg border border-white/20 bg-black/40 p-2.5 backdrop-blur-xs">
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-[#E6A52E] font-bold">Districts Covered</p>
+                    <p className="mt-0.5 font-mono text-sm font-bold text-white">36 Maharashtra</p>
                   </div>
-                  <div className="rounded border border-[#F4F0E5]/10 bg-black/20 p-2.5 backdrop-blur-xs">
-                    <p className="font-mono text-[10px] uppercase tracking-wider text-[#F4F0E5]/60">Active Crops</p>
+                  <div className="rounded-lg border border-white/20 bg-black/40 p-2.5 backdrop-blur-xs">
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-[#E6A52E] font-bold">Active Crops</p>
                     <p className="mt-0.5 font-mono text-sm font-bold text-[#3B8B61]">24 Field Crops</p>
                   </div>
                 </div>
               </div>
 
               {/* Bottom Interactive Hint */}
-              <div className="flex items-center justify-between text-xs text-[#F4F0E5]/70">
+              <div className="flex items-center justify-between text-xs text-white/80">
                 <span className="font-mono">Move cursor to navigate 3D cloud & terrain layers</span>
-                <span className="font-mono text-[#E6A52E]">● Real-time Simulation</span>
+                <span className="font-mono text-[#E6A52E] font-bold">● Real-time Simulation</span>
               </div>
             </div>
           </div>

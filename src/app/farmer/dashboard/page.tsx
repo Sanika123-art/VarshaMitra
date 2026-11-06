@@ -365,27 +365,27 @@ export default function FarmerDashboard() {
       {/* ── Active Crop & Risk Telemetry Strip ── */}
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="rounded-xl border-2 border-[#123C32] bg-white p-3.5 shadow-[3px_3px_0px_#123C32]">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/60">Monitored Crop</span>
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]">Monitored Crop</span>
           <p className="mt-1 font-display text-base font-bold text-[#123C32] truncate">{cropName}</p>
-          <p className="font-mono text-xs text-[#252923]/60">{stageName}</p>
+          <p className="font-mono text-xs font-semibold text-[#252923]/80">{stageName}</p>
         </div>
 
         <div className="rounded-xl border-2 border-[#123C32] bg-white p-3.5 shadow-[3px_3px_0px_#123C32]">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/60">Agro-Climatic Zone</span>
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]">Agro-Climatic Zone</span>
           <p className="mt-1 font-display text-base font-bold text-[#123C32] truncate">{liveSoil?.location_name || districtName}</p>
-          <p className="font-mono text-xs text-[#252923]/60">{formatSoilTexture(liveSoil?.dominant_texture, isMr)}</p>
+          <p className="font-mono text-xs font-semibold text-[#252923]/80">{formatSoilTexture(liveSoil?.dominant_texture, isMr)}</p>
         </div>
 
         <div className="rounded-xl border-2 border-[#123C32] bg-white p-3.5 shadow-[3px_3px_0px_#123C32]">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/60">Precipitation Status</span>
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]">Precipitation Status</span>
           <p className="mt-1 font-mono text-base font-bold text-[#123C32]">
-            {antecedentRain7d} mm <span className="text-xs font-normal text-[#252923]/60">/ 7-day</span>
+            {antecedentRain7d} mm <span className="text-xs font-normal text-[#252923]/80">/ 7-day</span>
           </p>
-          <p className="font-mono text-xs text-[#252923]/60">Next 14d: {forecastTotal14d} mm</p>
+          <p className="font-mono text-xs font-semibold text-[#252923]/80">Next 14d: {forecastTotal14d} mm</p>
         </div>
 
         <div className="rounded-xl border-2 border-[#123C32] bg-white p-3.5 shadow-[3px_3px_0px_#123C32] flex flex-col justify-between">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/60">Assessed Risk Level</span>
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]">Assessed Risk Level</span>
           <div className="mt-1">
             <RiskBadge risk={currentRisk} size="md" withPrefix />
           </div>

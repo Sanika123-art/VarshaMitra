@@ -113,7 +113,7 @@ function NavList({ role, onNavigate }: { role: UserRole; onNavigate?: () => void
       {navFor(role).map((group, gi) => (
         <div key={gi}>
           {group.labelKey && (
-            <p className="mb-2 px-3 font-mono text-[11px] font-bold uppercase tracking-wider text-[#123C32]/60">
+            <p className="mb-2 px-3 font-mono text-[11px] font-extrabold uppercase tracking-wider text-[#123C32]">
               {t(group.labelKey)}
             </p>
           )}

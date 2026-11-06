@@ -94,28 +94,28 @@ export default function InsightsPage() {
 
           <div className="mt-4 grid gap-3 sm:grid-cols-4">
             <div className="rounded-lg border-2 border-[#123C32]/20 bg-[#F4F0E5]/60 p-3">
-              <span className="font-mono text-[10px] font-bold uppercase text-[#123C32]/60">Total Records</span>
+              <span className="font-mono text-[10px] font-bold uppercase text-[#123C32]">Total Records</span>
               <p className="mt-1 font-mono text-lg font-black text-[#123C32]">{datasetSummary.total_records.toLocaleString()}</p>
-              <span className="font-mono text-[10px] text-[#252923]/60">Weather observations</span>
+              <span className="font-mono text-[10px] font-medium text-[#252923]/80">Weather observations</span>
             </div>
             <div className="rounded-lg border-2 border-[#123C32]/20 bg-[#F4F0E5]/60 p-3">
-              <span className="font-mono text-[10px] font-bold uppercase text-[#123C32]/60">Valid Observations</span>
+              <span className="font-mono text-[10px] font-bold uppercase text-[#123C32]">Valid Observations</span>
               <p className="mt-1 font-mono text-lg font-black text-[#3B8B61]">{datasetSummary.valid_records.toLocaleString()}</p>
-              <span className="font-mono text-[10px] text-[#252923]/60">Missing: {datasetSummary.missing_records}</span>
+              <span className="font-mono text-[10px] font-medium text-[#252923]/80">Missing: {datasetSummary.missing_records}</span>
             </div>
             <div className="rounded-lg border-2 border-[#123C32]/20 bg-[#F4F0E5]/60 p-3">
-              <span className="font-mono text-[10px] font-bold uppercase text-[#123C32]/60">Coverage Period</span>
+              <span className="font-mono text-[10px] font-bold uppercase text-[#123C32]">Coverage Period</span>
               <p className="mt-1 font-mono text-xs font-bold text-[#123C32]">
                 {datasetSummary.min_date || "1994"} → {datasetSummary.max_date || "2024"}
               </p>
-              <span className="font-mono text-[10px] text-[#252923]/60">Multi-decadal reanalysis</span>
+              <span className="font-mono text-[10px] font-medium text-[#252923]/80">Multi-decadal reanalysis</span>
             </div>
             <div className="rounded-lg border-2 border-[#123C32]/20 bg-[#F4F0E5]/60 p-3">
-              <span className="font-mono text-[10px] font-bold uppercase text-[#123C32]/60">Accumulated Rain</span>
+              <span className="font-mono text-[10px] font-bold uppercase text-[#123C32]">Accumulated Rain</span>
               <p className="mt-1 font-mono text-lg font-black text-[#123C32]">
                 {datasetSummary.total_precipitation_mm?.toLocaleString() ?? 0} mm
               </p>
-              <span className="font-mono text-[10px] text-[#252923]/60">Location: {datasetSummary.location_id}</span>
+              <span className="font-mono text-[10px] font-medium text-[#252923]/80">Location: {datasetSummary.location_id}</span>
             </div>
           </div>
         </div>
