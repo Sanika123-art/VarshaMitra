@@ -213,6 +213,7 @@ class CropAdvisoryItem(BaseModel):
     rule_version: str = Field(..., description="Algorithm version")
     validity_days: int = Field(default=5, description="Number of days this advisory remains applicable")
     caveats: str = Field(..., description="Uncertainty, data limits, or conditional constraints")
+    caveats_mr: Optional[str] = Field(None, description="Uncertainty, data limits, or conditional constraints in Marathi")
     provenance: str = Field(..., description="Institutional source citation")
 
 

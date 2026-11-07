@@ -62,9 +62,9 @@
 
   /* Typography */
   --font-sans: var(--font-inter), var(--font-noto-sans-devanagari), system-ui, sans-serif;
-  --font-display: var(--font-space-grotesk), var(--font-noto-sans-devanagari), system-ui, sans-serif;
+  --font-display: var(--font-source-serif), var(--font-noto-serif-devanagari), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-ibm-plex-mono), monospace;
-  --font-serif: var(--font-space-grotesk), var(--font-noto-serif-devanagari), Georgia, serif;
+  --font-serif: var(--font-source-serif), var(--font-noto-serif-devanagari), Georgia, serif;
 
   /* Radii — crisp, confident editorial */
   --radius-xs: 3px;
@@ -120,14 +120,19 @@ h5,
 h6 {
   font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   color: inherit;
 }
 html[lang="mr"] h1,
 html[lang="mr"] h2,
-html[lang="mr"] h3 {
+html[lang="mr"] h3,
+html[lang="mr"] h4,
+html[lang="mr"] h5,
+html[lang="mr"] h6,
+html[lang="mr"] .font-display {
+  font-family: var(--font-noto-serif-devanagari), Georgia, serif;
   letter-spacing: 0;
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
 ::selection {

@@ -253,3 +253,96 @@ async def get_block(block_id: str) -> BlockDetail:
 async def get_coverage_info() -> CoverageMetadata:
     """Declared data coverage and limitations statement."""
     return location_service.get_coverage()
+
+
+@router.get(
+    "/agro-zones",
+    status_code=status.HTTP_200_OK,
+    summary="Official Maharashtra Agro-Climatic Zones",
+    description="Retrieve all 9 official agro-climatic zones with climatological normals, soil characteristics, and primary crops.",
+)
+async def get_agro_climatic_zones() -> List[dict]:
+    """Retrieve official agro-climatic zones."""
+    return [
+        {
+            "id": "south_konkan",
+            "name": "South Konkan Coastal Zone",
+            "name_mr": "दक्षिण कोकण किनारपट्टी विभाग",
+            "districts": "Ratnagiri, Sindhudurg",
+            "rainfall": "3000-3500 mm",
+            "soil": "Lateritic Red Soil",
+            "crops": "Rice, Mango (Alphonso), Cashew",
+        },
+        {
+            "id": "north_konkan",
+            "name": "North Konkan Coastal Zone",
+            "name_mr": "उत्तर कोकण किनारपट्टी विभाग",
+            "districts": "Thane, Palghar, Raigad",
+            "rainfall": "2600-3000 mm",
+            "soil": "Coarse Shallow & Coastal Alluvium",
+            "crops": "Rice, Finger Millet (Ragi), Vegetables",
+        },
+        {
+            "id": "ghat_zone",
+            "name": "Ghat Zone (Western Ghats)",
+            "name_mr": "घाट विभाग",
+            "districts": "Maval, Mahabaleshwar, Radhanagari",
+            "rainfall": "3000-5000 mm",
+            "soil": "Lateritic & Forest Soil",
+            "crops": "Paddy, Hill Millets, Potato",
+        },
+        {
+            "id": "transition_zone_1",
+            "name": "Transition Zone 1",
+            "name_mr": "संक्रमण विभाग १",
+            "districts": "Kolhapur, Satara, Pune plains",
+            "rainfall": "1250-3000 mm",
+            "soil": "Reddish Brown to Medium Black",
+            "crops": "Sugarcane, Soybean, Groundnut",
+        },
+        {
+            "id": "transition_zone_2",
+            "name": "Transition Zone 2",
+            "name_mr": "संक्रमण विभाग २",
+            "districts": "Eastern Pune, Satara, Sangli, Nashik",
+            "rainfall": "700-1250 mm",
+            "soil": "Medium Black Vertisol",
+            "crops": "Bajra, Jowar, Onion, Grapes",
+        },
+        {
+            "id": "scarcity_zone",
+            "name": "Scarcity Zone (Rain Shadow)",
+            "name_mr": "पर्जन्यछायेचा अवर्षणप्रवण विभाग",
+            "districts": "Solapur, Ahilyanagar, Beed, Dharashiv",
+            "rainfall": "500-750 mm",
+            "soil": "Medium Black to Calcareous Clay",
+            "crops": "Rabi Jowar, Pomegranate, Pulses",
+        },
+        {
+            "id": "central_plateau",
+            "name": "Central Maharashtra Plateau Zone",
+            "name_mr": "मध्य महाराष्ट्र पठारी विभाग",
+            "districts": "Chh. Sambhajinagar, Jalna, Parbhani",
+            "rainfall": "700-900 mm",
+            "soil": "Deep Black Cotton Soil",
+            "crops": "Cotton, Soybean, Sweet Orange",
+        },
+        {
+            "id": "central_vidarbha",
+            "name": "Central Vidarbha Zone",
+            "name_mr": "मध्य विदर्भ विभाग",
+            "districts": "Nagpur, Wardha, Amravati, Yavatmal",
+            "rainfall": "950-1250 mm",
+            "soil": "Deep Heavy Vertisol",
+            "crops": "Cotton, Soybean, Pigeonpea (Tur)",
+        },
+        {
+            "id": "eastern_vidarbha",
+            "name": "Eastern Vidarbha Zone",
+            "name_mr": "पूर्व विदर्भ विभाग",
+            "districts": "Bhandara, Gondia, Chandrapur, Gadchiroli",
+            "rainfall": "1250-1700 mm",
+            "soil": "Yellowish Brown Sandy Loam (Wainganga basin)",
+            "crops": "Paddy, Pulses, Forest Produce",
+        },
+    ]

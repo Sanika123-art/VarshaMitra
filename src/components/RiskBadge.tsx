@@ -55,7 +55,7 @@ export default function RiskBadge({
       )}
     >
       <Icon size={size === "lg" ? 16 : size === "sm" ? 11 : 13} aria-hidden />
-      {withPrefix ? `${t("common.riskPrefix", { level: label })}` : label}
+      {withPrefix ? `${t("common.riskPrefix")} ${label}` : label}
     </span>
   );
 }

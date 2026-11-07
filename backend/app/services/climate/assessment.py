@@ -106,6 +106,8 @@ async def evaluate_block(
         anomaly=compute_rainfall_anomaly(
             observed_mm=accumulation.total_mm,
             baseline_normal_mm=baseline_normal_mm,
+            district_id=block.district_id,
+            window_days=window_days,
         ),
         monsoon_onset=compute_monsoon_onset(series.observations),
         data_quality=compute_data_quality(series.observations),

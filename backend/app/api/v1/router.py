@@ -1,7 +1,7 @@
 """Central API v1 Router."""
 
 from fastapi import APIRouter
-from app.api.routes import advisories, chat, climate, crops, dataset, health, locations, rainfall, risk, soil
+from app.api.routes import advisories, chat, climate, crops, dataset, health, locations, mandi, rainfall, risk, soil, tts
 
 api_v1_router = APIRouter()
 
@@ -34,6 +34,13 @@ api_v1_router.include_router(advisories.router)
 
 # Mount Saarthi conversational assistant routes (/api/v1/chat/...)
 api_v1_router.include_router(chat.router)
+
+# Mount Voice & TTS audio routes (/api/v1/tts)
+api_v1_router.include_router(tts.router)
+
+# Mount APMC Mandi rates routes (/api/v1/mandi/...)
+api_v1_router.include_router(mandi.router)
+
 
 
 

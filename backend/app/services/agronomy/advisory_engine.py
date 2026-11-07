@@ -95,6 +95,7 @@ def generate_crop_advisories(
                 rule_version="advisory-v1.0.0",
                 validity_days=3,
                 caveats="Water drainage must be executed before applying any chemical drenching.",
+                caveats_mr="रासायनिक आळवणी करण्यापूर्वी शेतातील साचलेल्या पाण्याचा पूर्ण निचरा करणे अनिवार्य आहे.",
                 provenance=crop.source_citation,
             )
         )
@@ -160,6 +161,7 @@ def generate_crop_advisories(
                     "Provisional rule. Apply protective irrigation in early morning or evening to reduce evaporation, "
                     "and only if water is available."
                 ),
+                caveats_mr="पाण्याचा अपव्यय टाळण्यासाठी संरक्षित पाणी सकाळी लवकर किंवा संध्याकाळी द्यावे; पाणी उपलब्ध असेल तरच सिंचन करावे.",
                 provenance=crop.source_citation,
             )
         )
@@ -221,6 +223,7 @@ def generate_crop_advisories(
                 rule_version="advisory-v1.1.0",
                 validity_days=5,
                 caveats="Provisional rule. Check your irrigation source and the crop calendar for your area.",
+                caveats_mr="हंगामी अंदाज. आपल्या भागातील सिंचन उपलब्धता व पीक दिनदर्शिकेनुसार नियोजन करावे.",
                 provenance=crop.source_citation,
             )
         )
@@ -296,6 +299,7 @@ def generate_crop_advisories(
                     "Routine stage practice, not triggered by today's weather. Do not mix chemical fungicides and "
                     "bio-culture at the same time; apply the chemical treatment 24 hours earlier." + confirm_note
                 ),
+                caveats_mr="रासायनिक बुरशीनाशक व जैविक खते एकत्र मिसळू नयेत; रासायनिक बीजप्रक्रिया २४ तास आधी करावी.",
                 provenance=crop.source_citation,
             )
         )
@@ -340,6 +344,7 @@ def generate_crop_advisories(
                 rule_version="advisory-v1.1.0",
                 validity_days=7,
                 caveats="Routine stage practice, not triggered by today's weather. Avoid deep hoeing in moist black cotton soil to prevent root damage.",
+                caveats_mr="हवामानाचा कोणताही प्रतिकूल इशारा नाही. मात्र भारी काळ्या जमिनीत ओल असताना खोल कोळपणी करू नये, अन्यथा मुळांना इजा होऊ शकते.",
                 provenance=crop.source_citation,
             )
         )
@@ -405,6 +410,7 @@ def generate_crop_advisories(
                     "Routine stage practice, not triggered by today's weather. Spray chemical pesticides only when pest "
                     "numbers cross the Economic Threshold Level (ETL)." + confirm_note
                 ),
+                caveats_mr="किडींची संख्या आर्थिक नुकसान पातळी (ETL) ओलांडल्याशिवाय रासायनिक कीटकनाशकांची फवारणी करू नये.",
                 provenance=crop.source_citation,
             )
         )
@@ -444,6 +450,7 @@ def generate_crop_advisories(
                 rule_version="advisory-v1.1.0",
                 validity_days=7,
                 caveats="Routine stage practice, not triggered by today's weather. Maturity signs differ by crop; follow the crop-specific package of practices.",
+                caveats_mr="पिकाची काढणी योग्य परिपक्वतेच्या लक्षणांनंतरच करावी; काढणीनंतर धान्य उन्हात चांगले वाळवून साठवावे.",
                 provenance=crop.source_citation,
             )
         )

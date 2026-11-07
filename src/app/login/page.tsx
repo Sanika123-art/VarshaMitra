@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sprout, ShieldCheck, ArrowRight, CloudRain, Sparkles, MapPin, Compass, ShieldAlert, Cpu } from "lucide-react";
+import { Sprout, ShieldCheck, ArrowRight, CloudRain, Sparkles, MapPin, Compass, ShieldAlert, Cpu, UserPlus } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslation } from "@/i18n/LanguageContext";
 import { useAppState } from "@/hooks/useAppState";
+import FarmerRegistrationForm from "@/components/auth/FarmerRegistrationForm";
+import FarmerLoginForm from "@/components/auth/FarmerLoginForm";
+import OfficerLoginForm from "@/components/auth/OfficerLoginForm";
 
 // Dynamically import 3D Canvas with ssr: false for high-performance client rendering
 const MonsoonLandscapeCanvas = dynamic(
@@ -26,21 +29,17 @@ const MonsoonLandscapeCanvas = dynamic(
 );
 
 export default function LoginPage() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const isMr = language === "mr";
   const { setRole, hydrated } = useAppState();
   const router = useRouter();
-  const [contact, setContact] = useState("");
-  const [password, setPassword] = useState("");
-  const [selectedRole, setSelectedRole] = useState<"farmer" | "officer">("farmer");
+
+  const [portalTab, setPortalTab] = useState<"farmer" | "register" | "officer">("farmer");
+  const [registrationMobile, setRegistrationMobile] = useState("");
 
   function enterAs(role: "farmer" | "officer") {
     setRole(role);
     router.push(role === "farmer" ? "/farmer/dashboard" : "/officer/dashboard");
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    enterAs(selectedRole);
   }
 
   if (!hydrated) return null;
@@ -151,157 +150,116 @@ export default function LoginPage() {
                   {t("login.title")}
                 </h2>
                 <p className="mt-1 font-sans text-xs sm:text-sm text-[#252923]/70">
-                  Select your operational mode or proceed directly with one-click demo credentials.
+                  {isMr
+                    ? "शेतकरी थेट मोबाईलद्वारे, तर कृषी अधिकारी शासकीय ईमेलद्वारे लॉगिन करू शकतात."
+                    : "Farmers sign in with mobile number & OTP, officers via government credentials."}
                 </p>
               </div>
 
-              {/* Instant Role Selectors */}
-              <div className="mt-6 space-y-3">
-                <p className="font-mono text-xs font-bold uppercase tracking-wider text-[#123C32]">
-                  Select Demonstration Role:
-                </p>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {/* Farmer Option */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedRole("farmer");
-                      enterAs("farmer");
-                    }}
-                    className={`group relative flex flex-col justify-between rounded-lg border-2 p-4 text-left transition-all duration-150 ${
-                      selectedRole === "farmer"
-                        ? "border-[#123C32] bg-[#123C32]/10 shadow-[4px_4px_0px_#123C32]"
-                        : "border-[#123C32]/30 bg-white/70 hover:border-[#123C32] hover:bg-white hover:shadow-[3px_3px_0px_#123C32]"
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[#123C32] bg-[#123C32] text-[#F4F0E5] shadow-xs">
-                          <Sprout size={18} />
-                        </span>
-                        <span className="rounded bg-[#123C32]/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]">
-                          Primary
-                        </span>
-                      </div>
-                      <h3 className="mt-3 font-display text-base font-bold text-[#252923]">
-                        {t("login.demoFarmer")}
-                      </h3>
-                      <p className="mt-1 font-sans text-xs text-[#252923]/75 line-clamp-2">
-                        {t("login.farmerRoleDesc")}
-                      </p>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between border-t border-[#123C32]/15 pt-2 text-xs font-bold text-[#123C32]">
-                      <span>Enter as Farmer</span>
-                      <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
-                    </div>
-                  </button>
-
-                  {/* Officer Option */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedRole("officer");
-                      enterAs("officer");
-                    }}
-                    className={`group relative flex flex-col justify-between rounded-lg border-2 p-4 text-left transition-all duration-150 ${
-                      selectedRole === "officer"
-                        ? "border-[#172B4D] bg-[#172B4D]/10 shadow-[4px_4px_0px_#172B4D]"
-                        : "border-[#172B4D]/30 bg-white/70 hover:border-[#172B4D] hover:bg-white hover:shadow-[3px_3px_0px_#172B4D]"
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[#172B4D] bg-[#172B4D] text-[#F4F0E5] shadow-xs">
-                          <ShieldCheck size={18} />
-                        </span>
-                        <span className="rounded bg-[#172B4D]/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-[#172B4D]">
-                          Admin
-                        </span>
-                      </div>
-                      <h3 className="mt-3 font-display text-base font-bold text-[#252923]">
-                        {t("login.demoOfficer")}
-                      </h3>
-                      <p className="mt-1 font-sans text-xs text-[#252923]/75 line-clamp-2">
-                        {t("login.officerRoleDesc")}
-                      </p>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between border-t border-[#172B4D]/15 pt-2 text-xs font-bold text-[#172B4D]">
-                      <span>Enter as Officer</span>
-                      <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div className="my-6 flex items-center gap-3">
-                <div className="h-[2px] flex-1 bg-[#123C32]/15" />
-                <span className="font-mono text-xs font-bold uppercase tracking-wider text-[#252923]/60">
-                  {t("login.orStandardLogin")}
-                </span>
-                <div className="h-[2px] flex-1 bg-[#123C32]/15" />
-              </div>
-
-              {/* Standard Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="contact"
-                    className="flex items-center justify-between font-mono text-xs font-bold uppercase tracking-wider text-[#252923]"
-                  >
-                    <span>{t("login.fieldContact")}</span>
-                    <span className="text-[10px] font-normal text-[#252923]/60">Phone or Gov ID</span>
-                  </label>
-                  <input
-                    id="contact"
-                    type="text"
-                    value={contact}
-                    onChange={(e) => setContact(e.target.value)}
-                    placeholder="e.g. 9876543210 / officer@agri.gov.in"
-                    className="mt-1.5 w-full rounded-md border-2 border-[#123C32]/30 bg-white px-3.5 py-2.5 font-sans text-sm text-[#252923] shadow-xs outline-none transition focus:border-[#123C32] focus:shadow-[2px_2px_0px_#123C32]"
-                    autoComplete="username"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="password"
-                    className="flex items-center justify-between font-mono text-xs font-bold uppercase tracking-wider text-[#252923]"
-                  >
-                    <span>{t("login.fieldPassword")}</span>
-                    <span className="text-[10px] font-normal text-[#252923]/60">Demo: Any Password</span>
-                  </label>
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="mt-1.5 w-full rounded-md border-2 border-[#123C32]/30 bg-white px-3.5 py-2.5 font-sans text-sm text-[#252923] shadow-xs outline-none transition focus:border-[#123C32] focus:shadow-[2px_2px_0px_#123C32]"
-                    autoComplete="current-password"
-                  />
-                </div>
-
+              {/* Mode Switcher Tabs: 3 Roles (Farmer Login, New Registration, Officer Login) */}
+              <div className="mt-5 grid grid-cols-3 gap-1 rounded-lg border-2 border-[#123C32]/30 bg-white p-1 font-mono text-xs">
+                {/* Tab 1: Farmer Login */}
                 <button
-                  type="submit"
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border-2 border-[#123C32] bg-[#123C32] px-4 py-3 font-mono text-sm font-bold uppercase tracking-wider text-[#F4F0E5] shadow-[4px_4px_0px_#252923] transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[5px_5px_0px_#252923] active:translate-x-[0px] active:translate-y-[0px] active:shadow-[2px_2px_0px_#252923]"
+                  type="button"
+                  onClick={() => setPortalTab("farmer")}
+                  className={`flex items-center justify-center gap-1.5 rounded-md py-2 font-bold uppercase transition ${
+                    portalTab === "farmer"
+                      ? "border border-[#123C32] bg-[#123C32] text-[#F4F0E5] shadow-xs"
+                      : "text-[#252923] hover:bg-[#F4F0E5]"
+                  }`}
                 >
-                  <span>{t("login.submit")}</span>
-                  <ArrowRight size={16} />
+                  <Sprout size={13} className="text-[#3B8B61]" />
+                  <span>{isMr ? "शेतकरी" : "Farmer"}</span>
                 </button>
-              </form>
+
+                {/* Tab 2: New Registration */}
+                <button
+                  type="button"
+                  onClick={() => setPortalTab("register")}
+                  className={`flex items-center justify-center gap-1.5 rounded-md py-2 font-bold uppercase transition ${
+                    portalTab === "register"
+                      ? "border border-[#123C32] bg-[#123C32] text-[#F4F0E5] shadow-xs"
+                      : "text-[#252923] hover:bg-[#F4F0E5]"
+                  }`}
+                >
+                  <UserPlus size={13} className="text-[#E6A52E]" />
+                  <span>{isMr ? "नोंदणी" : "Register"}</span>
+                  <span className="hidden sm:inline rounded bg-[#E6A52E] px-1 py-0.5 text-[8px] font-black text-[#123C32]">NEW</span>
+                </button>
+
+                {/* Tab 3: Officer Login */}
+                <button
+                  type="button"
+                  onClick={() => setPortalTab("officer")}
+                  className={`flex items-center justify-center gap-1.5 rounded-md py-2 font-bold uppercase transition ${
+                    portalTab === "officer"
+                      ? "border border-[#172B4D] bg-[#172B4D] text-[#F4F0E5] shadow-xs"
+                      : "text-[#252923] hover:bg-[#F4F0E5]"
+                  }`}
+                >
+                  <ShieldCheck size={13} className="text-[#2878A5]" />
+                  <span>{isMr ? "अधिकारी" : "Officer"}</span>
+                </button>
+              </div>
+
+              {/* Dynamic View based on Active Tab */}
+              <div className="mt-5">
+                {portalTab === "farmer" && (
+                  <FarmerLoginForm
+                    onSwitchToRegister={(mobile) => {
+                      if (mobile) setRegistrationMobile(mobile);
+                      setPortalTab("register");
+                    }}
+                    initialMobile={registrationMobile}
+                  />
+                )}
+
+                {portalTab === "register" && (
+                  <FarmerRegistrationForm
+                    initialMobile={registrationMobile}
+                    onSwitchToLogin={() => setPortalTab("farmer")}
+                  />
+                )}
+
+                {portalTab === "officer" && (
+                  <OfficerLoginForm
+                    onSwitchToFarmer={() => setPortalTab("farmer")}
+                  />
+                )}
+              </div>
             </div>
 
-            {/* Bottom Institutional Disclaimer */}
-            <div className="mt-8 border-t border-[#123C32]/15 pt-4 text-center">
-              <div className="flex items-center justify-center gap-1.5 text-xs text-[#252923]/70">
-                <ShieldAlert size={14} className="text-[#E6A52E]" />
-                <span>Sandbox Mode: Instant credentials preloaded for jury evaluation</span>
+            {/* Quick 1-Click Evaluation Shortcuts for Jury / Testing */}
+            <div className="mt-8 border-t border-[#123C32]/15 pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#252923]/60">
+                  {isMr ? "⚡ त्वरित चाचणी (Demo):" : "⚡ Quick Evaluation:"}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => enterAs("farmer")}
+                    className="flex items-center gap-1 rounded border border-[#123C32]/30 bg-white px-2.5 py-1 font-mono text-[10px] font-bold text-[#123C32] hover:bg-[#123C32] hover:text-[#F4F0E5] shadow-xs transition"
+                  >
+                    <Sprout size={11} className="text-[#3B8B61]" />
+                    <span>Demo Farmer</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => enterAs("officer")}
+                    className="flex items-center gap-1 rounded border border-[#172B4D]/30 bg-white px-2.5 py-1 font-mono text-[10px] font-bold text-[#172B4D] hover:bg-[#172B4D] hover:text-[#F4F0E5] shadow-xs transition"
+                  >
+                    <ShieldCheck size={11} className="text-[#2878A5]" />
+                    <span>Demo Officer</span>
+                  </button>
+                </div>
               </div>
-              <p className="mt-1 font-mono text-[10px] text-[#252923]/50">
-                VarshaMitra · Smart India Hackathon Demonstration Release
-              </p>
+
+              <div className="mt-3 text-center">
+                <p className="font-mono text-[9px] text-[#252923]/50">
+                  VarshaMitra · Smart India Hackathon Demonstration Release · MahaDBT Integrated
+                </p>
+              </div>
             </div>
           </div>
 

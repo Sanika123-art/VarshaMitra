@@ -10,6 +10,7 @@ from app.schemas.rainfall import (
     HistoricalRainfallRecord,
     SourceInventoryItem,
 )
+from app.services.dataset.historical_service import historical_climate_service
 from app.services.dataset.ingest import ingest_historical_data
 from app.services.dataset.inventory import get_source_inventory
 from app.services.dataset.storage import dataset_storage
@@ -100,3 +101,17 @@ async def get_dataset_storage_summary(
 ) -> Dict[str, Any]:
     """Get persistent storage summary statistics."""
     return dataset_storage.get_dataset_summary(location_id=block_id)
+
+
+@router.get(
+    "/historical-trends",
+    response_model=Dict[str, Any],
+    status_code=status.HTTP_200_OK,
+    summary="Get Multi-Decadal Historical Climate Trends & Dry Spells",
+    description="Fetches live or cached Copernicus ERA5-Land reanalysis observations, multi-year precipitation departure anomalies, and Kharif dry-spell statistics.",
+)
+async def get_historical_trends(
+    block_id: Optional[str] = Query(default="baramati", description="Target Maharashtra block ID"),
+) -> Dict[str, Any]:
+    """Retrieve real-world historical climate trends, anomalies and dry-spell counts."""
+    return await historical_climate_service.get_historical_trends(block_id=block_id)

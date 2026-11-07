@@ -33,7 +33,8 @@ const en = {
     "riskPrefix": "Risk:",
     "whatIsThis": "What does this mean?",
     "dayN": "Day {n}",
-    "days": "days"
+    "days": "days",
+    "insufficientData": "Insufficient Data"
   },
   "nav": {
     "climateIntelligence": "Climate Intelligence",
@@ -183,8 +184,8 @@ const en = {
     }
   },
   "climatePage": {
-    "title": "Hyperlocal monsoon intelligence",
-    "subtitle": "AI forecast prototype — probabilities are simulated for this demo and are not live IMD output.",
+    "title": "Hyperlocal monsoon & climate intelligence",
+    "subtitle": "High-resolution ECMWF & Open-Meteo Ensemble Numerical Weather Prediction calibrated for Block Niphad, Nashik.",
     "onsetProbability": "Monsoon onset probability",
     "drySpellRisk": "Dry-spell risk",
     "heavyRainRisk": "Heavy-rain risk",
@@ -608,6 +609,7 @@ const en = {
     "subtitle": "Your AI Farming Companion",
     "welcomeTitle": "Namaskar! I'm Saarthi.",
     "welcomeSubtitle": "I'm here to help you understand your farm's weather conditions, crop suitability, sowing decisions, and agricultural questions.",
+    "welcomeDesc": "I'm here to help you understand your farm's weather conditions, crop suitability, sowing decisions, and agricultural questions.",
     "activeContext": "Active Farm Context",
     "newChat": "New Consultation",
     "chatHistory": "Past Consultations",
@@ -617,7 +619,9 @@ const en = {
     "deleteConv": "Delete",
     "renameConv": "Rename",
     "askPlaceholder": "Ask Saarthi about your farm, rain, sowing, or crop health...",
+    "inputPlaceholder": "Ask Saarthi about your farm, rain, sowing, or crop health...",
     "suggestedTitle": "Frequently Asked Farm Questions",
+    "suggestedQuestions": "Frequently Asked Questions",
     "catWeather": "Weather & Rain",
     "catSowing": "Sowing & Planting",
     "catCrop": "Crop Guidance",

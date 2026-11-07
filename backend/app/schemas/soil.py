@@ -68,6 +68,26 @@ class RegionalSoilSummaryResponse(BaseModel):
         description="Non-negotiable soil estimate limitation notice"
     )
     retrieved_at: dt_datetime = Field(..., description="UTC retrieval timestamp")
+    
+    # Live Real-Time Land Surface Diagnostics (Open-Meteo Land Surface / ECMWF)
+    live_soil_moisture_0_to_7cm: Optional[float] = Field(
+        None, description="Current volumetric topsoil moisture (0-7cm) in m3/m3"
+    )
+    live_soil_moisture_7_to_28cm: Optional[float] = Field(
+        None, description="Current volumetric subsoil moisture (7-28cm) in m3/m3"
+    )
+    live_soil_temperature_c: Optional[float] = Field(
+        None, description="Current topsoil temperature in degrees Celsius"
+    )
+    vapsa_status: Optional[str] = Field(
+        None, description="Calibrated Vapsa moisture condition (optimal_vapsa, dry_stress, saturated_waterlogged)"
+    )
+    vapsa_description_en: Optional[str] = Field(
+        None, description="Actionable English Vapsa diagnostic"
+    )
+    vapsa_description_mr: Optional[str] = Field(
+        None, description="Actionable Marathi Vapsa diagnostic"
+    )
 
 
 class FieldSoilTestSubmission(BaseModel):

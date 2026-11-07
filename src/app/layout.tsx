@@ -24,7 +24,12 @@ const ibmPlexMono = IBM_Plex_Mono({
   variable: "--font-ibm-plex-mono",
   display: "swap",
 });
-const sourceSerif = Source_Serif_4({ subsets: ["latin"], variable: "--font-source-serif", display: "swap" });
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "800"],
+  variable: "--font-source-serif",
+  display: "swap",
+});
 const notoSansDeva = Noto_Sans_Devanagari({
   subsets: ["devanagari"],
   variable: "--font-noto-sans-devanagari",

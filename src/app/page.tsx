@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -37,15 +37,25 @@ export default function LandingPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const [zones, setZones] = useState(AGRO_ZONES);
+
+  useEffect(() => {
+    fetch("http://127.0.0.1:8000/api/v1/locations/agro-zones")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) setZones(data);
+      })
+      .catch(() => {});
+  }, []);
 
   const filteredZones = searchQuery
-    ? AGRO_ZONES.filter(
+    ? zones.filter(
         (z) =>
           z.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           z.crops.toLowerCase().includes(searchQuery.toLowerCase()) ||
           z.soil.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : AGRO_ZONES;
+    : zones;
 
   return (
     <div className="bg-[#F4F0E5] text-[#252923]">

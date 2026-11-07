@@ -17,16 +17,22 @@ export default function RiskMap({
   items,
   layer,
   selectedBlockId,
+  flyTarget,
   onSelect,
   onMapCoordinateSelect,
   language,
+  mapStyle = "terrain",
+  userFarmBlockId = "niphad",
 }: {
   items: RiskSummaryItem[];
   layer: MapLayer;
   selectedBlockId: string | null;
+  flyTarget?: { center: [number, number]; zoom: number; key: number } | null;
   onSelect: (item: RiskSummaryItem) => void;
   onMapCoordinateSelect?: (lat: number, lon: number) => void;
   language: "en" | "mr";
+  mapStyle?: "terrain" | "satellite";
+  userFarmBlockId?: string;
 }) {
   const { t } = useTranslation();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -49,6 +55,7 @@ export default function RiskMap({
       features: items.map((item) => {
         const risk = layerRisk(item, layer);
         const isSelected = item.block_id === selectedBlockId;
+        const isUserFarm = item.block_id === userFarmBlockId;
         return {
           type: "Feature",
           geometry: {
@@ -62,11 +69,12 @@ export default function RiskMap({
             risk,
             riskColor: riskColor[risk] ?? "#718096",
             isSelected: isSelected ? 1 : 0,
+            isUserFarm: isUserFarm ? 1 : 0,
           },
         };
       }),
     };
-  }, [items, layer, selectedBlockId, language]);
+  }, [items, layer, selectedBlockId, userFarmBlockId, language]);
 
   const onSelectRef = useRef(onSelect);
   useEffect(() => {
@@ -92,50 +100,67 @@ export default function RiskMap({
   useEffect(() => {
     if (!mapContainer.current || !webGlSupported) return;
 
-    const customTileUrl =
-      typeof process !== "undefined" && process.env.NEXT_PUBLIC_MAP_TILE_URL
-        ? process.env.NEXT_PUBLIC_MAP_TILE_URL
-        : null;
-
-    const tileUrls = customTileUrl
-      ? [customTileUrl]
-      : [
-          "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-          "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-          "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        ];
-
     const map = new maplibregl.Map({
       container: mapContainer.current,
       style: {
         version: 8,
         sources: {
-          "osm-raster-tiles": {
+          "terrain-tiles": {
             type: "raster",
-            tiles: tileUrls,
+            tiles: [
+              "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            ],
             tileSize: 256,
             maxzoom: 19,
             attribution:
               '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
           },
+          "satellite-tiles": {
+            type: "raster",
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            ],
+            tileSize: 256,
+            maxzoom: 19,
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS',
+          },
         },
         layers: [
           {
-            id: "osm-raster-layer",
+            id: "terrain-layer",
             type: "raster",
-            source: "osm-raster-tiles",
+            source: "terrain-tiles",
             minzoom: 0,
             maxzoom: 19,
+            layout: {
+              visibility: mapStyle === "terrain" ? "visible" : "none",
+            },
+          },
+          {
+            id: "satellite-layer",
+            type: "raster",
+            source: "satellite-tiles",
+            minzoom: 0,
+            maxzoom: 19,
+            layout: {
+              visibility: mapStyle === "satellite" ? "visible" : "none",
+            },
           },
         ],
       },
-      center: [75.5, 19.4], // Central Maharashtra
-      zoom: 6.8,
-      minZoom: 5.5,
+      center: [76.4, 19.2], // Calibrated center for complete Maharashtra framing
+      zoom: 6.6,
+      minZoom: 5.4,
       maxZoom: 15,
+      maxBounds: [
+        [70.5, 14.5], // Southwest coordinates (Arabian Sea / Goa border)
+        [82.5, 23.5], // Northeast coordinates (Madhya Pradesh / Chhattisgarh border)
+      ],
     });
 
-    // Position navigation controls at bottom-right so they never collide with top toolbar or sidebar panels
+    // Position navigation controls at bottom-right
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
 
     map.on("load", () => {
@@ -144,7 +169,7 @@ export default function RiskMap({
         type: "geojson",
         data: getGeoJsonRef.current(),
         cluster: true,
-        clusterMaxZoom: 8, // Cluster at statewide view; progressively uncluster at district/taluka view (> 8)
+        clusterMaxZoom: 8,
         clusterRadius: 40,
       });
 
@@ -158,11 +183,11 @@ export default function RiskMap({
           "circle-color": [
             "step",
             ["get", "point_count"],
-            "#2a583e", // 2-4 points: refined forest green
+            "#2a583e", // 2-4 points
             5,
-            "#1f4832", // 5-14 points: deeper forest
+            "#1f4832", // 5-14 points
             15,
-            "#163624", // 15+ points: dark evergreen
+            "#163624", // 15+ points
           ],
           "circle-radius": [
             "step",
@@ -202,16 +227,32 @@ export default function RiskMap({
         source: "blocks-source",
         filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "isSelected"], 1]],
         paint: {
-          "circle-radius": 18,
+          "circle-radius": 20,
           "circle-color": ["get", "riskColor"],
-          "circle-opacity": 0.22,
-          "circle-stroke-width": 2,
+          "circle-opacity": 0.25,
+          "circle-stroke-width": 2.5,
           "circle-stroke-color": ["get", "riskColor"],
-          "circle-stroke-opacity": 0.75,
+          "circle-stroke-opacity": 0.85,
         },
       });
 
-      // 4. Individual unclustered block markers (restrained, zoom-scaled)
+      // 4. User Farm Beacon Halo Layer (Golden Pulsing Halo)
+      map.addLayer({
+        id: "user-farm-beacon-halo",
+        type: "circle",
+        source: "blocks-source",
+        filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "isUserFarm"], 1]],
+        paint: {
+          "circle-radius": 24,
+          "circle-color": "#E6A52E",
+          "circle-opacity": 0.35,
+          "circle-stroke-width": 3,
+          "circle-stroke-color": "#E6A52E",
+          "circle-stroke-opacity": 0.9,
+        },
+      });
+
+      // 5. Individual unclustered block markers
       map.addLayer({
         id: "blocks-point",
         type: "circle",
@@ -223,17 +264,46 @@ export default function RiskMap({
             ["linear"],
             ["zoom"],
             6, 5,
-            8.5, 6.5,
-            12, 8.5,
+            8.5, 7,
+            12, 9,
           ],
-          "circle-color": ["get", "riskColor"],
+          "circle-color": [
+            "case",
+            ["==", ["get", "isUserFarm"], 1],
+            "#E6A52E", // Gold for logged-in user farm
+            ["get", "riskColor"],
+          ],
           "circle-opacity": 0.95,
-          "circle-stroke-width": 1.5,
-          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2,
+          "circle-stroke-color": [
+            "case",
+            ["==", ["get", "isUserFarm"], 1],
+            "#123C32",
+            "#ffffff",
+          ],
         },
       });
 
-      // Cluster click: smooth expansion / zoom into cluster bounds
+      // 6. User Farm Beacon Callout Text
+      map.addLayer({
+        id: "user-farm-beacon-text",
+        type: "symbol",
+        source: "blocks-source",
+        filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "isUserFarm"], 1]],
+        layout: {
+          "text-field": language === "mr" ? "📍 तुमचे शेत (सागर तळपदे)" : "📍 Your Farm (Sagar Talpade)",
+          "text-size": 11,
+          "text-offset": [0, -1.8],
+          "text-anchor": "bottom",
+        },
+        paint: {
+          "text-color": "#123C32",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 2.5,
+        },
+      });
+
+      // Cluster click: smooth expansion
       map.on("click", "clusters", async (e: maplibregl.MapLayerMouseEvent) => {
         const features = map.queryRenderedFeatures(e.point, { layers: ["clusters"] });
         const clusterId = features[0]?.properties?.cluster_id;
@@ -257,13 +327,13 @@ export default function RiskMap({
         map.getCanvas().style.cursor = "";
       });
 
-      // Hover interaction on individual markers with safe DOM creation
+      // Hover interaction on individual markers
       map.on("mouseenter", "blocks-point", (e: maplibregl.MapLayerMouseEvent) => {
         map.getCanvas().style.cursor = "pointer";
         const feature = e.features?.[0];
         if (!feature || !feature.properties) return;
         const coordinates = (feature.geometry as GeoJSON.Point).coordinates.slice() as [number, number];
-        const { name, district, risk } = feature.properties;
+        const { name, district, risk, isUserFarm } = feature.properties;
 
         if (popupRef.current) popupRef.current.remove();
 
@@ -274,7 +344,9 @@ export default function RiskMap({
         popupContainer.style.color = "#16261f";
 
         const titleDiv = document.createElement("div");
-        titleDiv.textContent = `${name} (${district})`;
+        titleDiv.textContent = isUserFarm
+          ? `📍 ${name} (${district}) - ${language === "mr" ? "तुमचे शेत" : "Your Farm"}`
+          : `${name} (${district})`;
         popupContainer.appendChild(titleDiv);
 
         const subDiv = document.createElement("div");
@@ -312,13 +384,12 @@ export default function RiskMap({
         }
       });
 
-      // Click interaction on arbitrary map points across Maharashtra
+      // Click interaction on arbitrary map points
       map.on("click", (e: maplibregl.MapMouseEvent) => {
         const rendered = map.queryRenderedFeatures(e.point, { layers: ["blocks-point", "clusters"] });
-        if (rendered && rendered.length > 0) return; // handled by markers or clusters
+        if (rendered && rendered.length > 0) return;
 
         const { lng, lat } = e.lngLat;
-        // Maharashtra bounding box check: 15.60N to 22.15N, 72.60E to 80.90E
         if (lat >= 15.60 && lat <= 22.15 && lng >= 72.60 && lng <= 80.90) {
           if (onMapCoordinateSelectRef.current) {
             onMapCoordinateSelectRef.current(lat, lng);
@@ -334,7 +405,19 @@ export default function RiskMap({
     };
   }, [webGlSupported]);
 
-  // Update source data whenever items, layer, selectedBlockId, or language changes
+  // Handle map style switching (Terrain vs Satellite)
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (map.getLayer("terrain-layer")) {
+      map.setLayoutProperty("terrain-layer", "visibility", mapStyle === "terrain" ? "visible" : "none");
+    }
+    if (map.getLayer("satellite-layer")) {
+      map.setLayoutProperty("satellite-layer", "visibility", mapStyle === "satellite" ? "visible" : "none");
+    }
+  }, [mapStyle]);
+
+  // Update source data whenever items, layer, selectedBlockId, userFarmBlockId, or language changes
   useEffect(() => {
     if (!mapRef.current) return;
     const source = mapRef.current.getSource("blocks-source") as maplibregl.GeoJSONSource | undefined;
@@ -356,44 +439,17 @@ export default function RiskMap({
     }
   }, [selectedBlockId, items]);
 
-  // WebGL Fallback interface
-  if (!webGlSupported) {
-    return (
-      <div className="relative flex h-full w-full flex-col items-center justify-center bg-paper-deep p-6 text-center">
-        <div className="max-w-md rounded-2xl border border-line bg-surface p-6 shadow-md">
-          <h3 className="font-serif text-lg font-semibold text-ink">
-            {t("riskMapPage.title")} · 2D Fallback
-          </h3>
-          <p className="mt-2 text-xs text-ink-muted">
-            WebGL is not active in this browser environment. Showing backend block risk list directly:
-          </p>
-          <div className="mt-4 max-h-72 overflow-y-auto space-y-2 text-left">
-            {items.map((b) => {
-              const risk = layerRisk(b, layer);
-              const isSelected = b.block_id === selectedBlockId;
-              return (
-                <button
-                  key={b.block_id}
-                  onClick={() => onSelect(b)}
-                  className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-xs transition-colors ${
-                    isSelected ? "border-forest bg-forest-soft font-semibold" : "border-line bg-surface hover:bg-paper-deep"
-                  }`}
-                >
-                  <span>{language === "mr" ? b.block_name_mr : b.block_name} ({b.district_name})</span>
-                  <span
-                    className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white uppercase"
-                    style={{ background: riskColor[risk] ?? "#718096" }}
-                  >
-                    {t(riskLabelKey[risk] ?? "common.insufficientData")}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Fly target handling
+  useEffect(() => {
+    if (!mapRef.current || !flyTarget) return;
+    mapRef.current.flyTo({
+      center: flyTarget.center,
+      zoom: flyTarget.zoom,
+      speed: 1.3,
+      curve: 1.4,
+      essential: true,
+    });
+  }, [flyTarget]);
 
   return (
     <div className="relative h-full w-full">

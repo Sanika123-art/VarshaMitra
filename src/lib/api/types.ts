@@ -82,6 +82,15 @@ export interface ForecastItem {
   precipitation_probability_pct?: number;
   temperature_max_c?: number;
   temperature_min_c?: number;
+  wind_speed_kmh?: number;
+}
+
+export interface CurrentWeatherSnapshot {
+  temperature_c: number;
+  relative_humidity_pct?: number;
+  wind_speed_kmh?: number;
+  observed_time?: string;
+  weather_condition?: string;
 }
 
 export interface ForecastSeries {
@@ -93,6 +102,7 @@ export interface ForecastSeries {
   longitude: number;
   forecast_days: number;
   available_days: number;
+  current_weather?: CurrentWeatherSnapshot;
   forecast: ForecastItem[];
   provider: {
     provider_id: string;
@@ -233,6 +243,12 @@ export interface RegionalSoilSummaryResponse {
   available_water_capacity_mm_m: number;
   drainage_class: string;
   limitations: string;
+  live_soil_moisture_0_to_7cm?: number | null;
+  live_soil_moisture_7_to_28cm?: number | null;
+  live_soil_temperature_c?: number | null;
+  vapsa_status?: string | null;
+  vapsa_description_en?: string | null;
+  vapsa_description_mr?: string | null;
 }
 
 export interface GrowthStageItem {
@@ -345,6 +361,7 @@ export interface CropAdvisoryItem {
   rule_version: string;
   validity_days: number;
   caveats: string;
+  caveats_mr?: string;
   provenance: string;
 }
 
@@ -390,6 +407,54 @@ export interface ExplanationResponse {
   limitations: string;
 }
 
+export interface NearbyMandiItem {
+  market_id: string;
+  market_name: string;
+  market_name_mr: string;
+  distance_km: number;
+  distance_km_str: string;
+  is_nearest: boolean;
+  modal_price: number;
+  min_price: number;
+  max_price: number;
+  arrivals: string;
+  arrivals_mr: string;
+  trend: string;
+  trend_mr: string;
+  selling_advice_en?: string | null;
+  selling_advice_mr?: string | null;
+}
+
+export interface MandiRateResponse {
+  crop_id: string;
+  crop_name: string;
+  crop_name_mr: string;
+  market_name: string;
+  market_name_mr: string;
+  district: string;
+  district_mr: string;
+  taluka?: string;
+  modal_price: number;
+  min_price: number;
+  max_price: number;
+  msp?: number | null;
+  msp_difference?: number | null;
+  unit: string;
+  unit_mr: string;
+  arrivals: string;
+  arrivals_mr: string;
+  trend: string;
+  trend_mr: string;
+  arrival_date: string;
+  sync_time: string;
+  source: string;
+  source_url: string;
+  is_live_sync: boolean;
+  selling_advice_en: string;
+  selling_advice_mr: string;
+  nearby_mandis?: NearbyMandiItem[];
+}
+
 export interface DatasetSummaryResponse {
   location_id: string;
   total_records: number;
@@ -399,6 +464,38 @@ export interface DatasetSummaryResponse {
   max_date?: string | null;
   total_precipitation_mm?: number;
   storage_file?: string;
+}
+
+export interface HistoricalTrendItem {
+  year: number;
+  rainfall_mm?: number;
+  rainfallAnomalyPct: number;
+  drySpellDays: number;
+}
+
+export interface DistrictDrySpellItem {
+  districtId: string;
+  districtName: string;
+  avgDrySpellDays: number;
+}
+
+export interface HistoricalTrendsResponse {
+  location_id: string;
+  location_name: string;
+  district_name: string;
+  coverage_years: string;
+  normal_annual_rainfall_mm: number;
+  historical_trend: HistoricalTrendItem[];
+  dry_spell_frequency_by_district: DistrictDrySpellItem[];
+  crop_risk_patterns: Array<{
+    blockId: string;
+    cropKey: string;
+    patternKey: string;
+    riskLevel?: string;
+  }>;
+  total_records_ingested: number;
+  dataset_provenance: string;
+  retrieved_at: string;
 }
 
 export interface RiskSummaryItem {

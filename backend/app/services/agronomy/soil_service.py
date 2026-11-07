@@ -2,11 +2,15 @@
 
 import contextlib
 from datetime import datetime, timezone
+import logging
 import sqlite3
 import uuid
 from typing import Any, Dict, List, Optional
 
+import httpx
+
 from app.data.regional_soil_data import get_regional_soil_profile
+from app.schemas.location import BlockDetail
 from app.schemas.soil import (
     FieldSoilTestResponse,
     FieldSoilTestSubmission,
@@ -15,6 +19,8 @@ from app.schemas.soil import (
     SoilDataSource,
 )
 from app.services.dataset.storage import dataset_storage
+
+logger = logging.getLogger(__name__)
 
 
 class SoilService:
@@ -68,6 +74,81 @@ class SoilService:
     def get_regional_profile(self, block_id: str) -> RegionalSoilSummaryResponse:
         """Fetch regional estimated soil profile for an administrative block."""
         return get_regional_soil_profile(block_id)
+
+    async def get_regional_profile_with_live_diagnostics(
+        self, block: BlockDetail
+    ) -> RegionalSoilSummaryResponse:
+        """Fetch baseline soil profile and enrich with real-time land surface soil moisture from Open-Meteo."""
+        base = get_regional_soil_profile(block.id)
+
+        live_m0_7: Optional[float] = None
+        live_m7_28: Optional[float] = None
+        live_temp: Optional[float] = None
+        vapsa_stat = "optimal_vapsa"
+        vapsa_en = "Standard regional moisture parameters."
+        vapsa_mr = "प्रादेशिक सरासरीनुसार योग्य वाफसा स्थिती."
+
+        try:
+            url = "https://api.open-meteo.com/v1/forecast"
+            params = {
+                "latitude": round(block.latitude, 4),
+                "longitude": round(block.longitude, 4),
+                "current": "soil_moisture_0_to_7cm,soil_moisture_7_to_28cm,soil_temperature_0_to_7cm",
+                "timezone": "Asia/Kolkata",
+            }
+            async with httpx.AsyncClient(timeout=4.0) as client:
+                res = await client.get(url, params=params)
+                if res.status_code == 200:
+                    curr = res.json().get("current", {})
+                    live_m0_7 = curr.get("soil_moisture_0_to_7cm")
+                    live_m7_28 = curr.get("soil_moisture_7_to_28cm")
+                    live_temp = curr.get("soil_temperature_0_to_7cm")
+
+                    if live_m0_7 is not None:
+                        if live_m0_7 < 0.18:
+                            vapsa_stat = "dry_stress"
+                            vapsa_en = (
+                                f"Topsoil moisture is low ({round(live_m0_7 * 100, 1)}% volumetric). "
+                                "Dry soil conditions risk poor germination; wait for 75 mm rain or provide irrigation."
+                            )
+                            vapsa_mr = (
+                                f"वरच्या थरातील ओलावा कमी आहे ({round(live_m0_7 * 100, 1)}%). "
+                                "कोरड्या जमिनीत पेरणी करू नये; ७५ मिमी पाऊस किंवा सिंचनाची प्रतीक्षा करावी."
+                            )
+                        elif 0.18 <= live_m0_7 <= 0.38:
+                            vapsa_stat = "optimal_vapsa"
+                            vapsa_en = (
+                                f"Optimal Vapsa condition active ({round(live_m0_7 * 100, 1)}% volumetric moisture). "
+                                "Aeration and capillary moisture are balanced; highly suitable for sowing."
+                            )
+                            vapsa_mr = (
+                                f"उत्तम वाफसा स्थिती उपलब्ध आहे ({round(live_m0_7 * 100, 1)}% ओलावा). "
+                                "हवा आणि ओलावा यांचा समतोल असल्याने पेरणीसाठी अत्यंत अनुकूल."
+                            )
+                        else:
+                            vapsa_stat = "saturated_waterlogged"
+                            vapsa_en = (
+                                f"Soil is near saturation ({round(live_m0_7 * 100, 1)}% moisture). "
+                                "Wait for field to drain before running machinery to prevent root rot and compaction."
+                            )
+                            vapsa_mr = (
+                                f"जमीन प्रमाणापेक्षा जास्त ओली आहे ({round(live_m0_7 * 100, 1)}% ओलावा). "
+                                "पाण्याचा निचरा होईपर्यंत पेरणी किंवा अवजारे चालवणे टाळावे."
+                            )
+        except Exception as e:
+            logger.warning("Could not fetch real-time soil moisture from Open-Meteo: %s", e)
+
+        # Return model copy with live values
+        return base.model_copy(
+            update={
+                "live_soil_moisture_0_to_7cm": live_m0_7,
+                "live_soil_moisture_7_to_28cm": live_m7_28,
+                "live_soil_temperature_c": live_temp,
+                "vapsa_status": vapsa_stat,
+                "vapsa_description_en": vapsa_en,
+                "vapsa_description_mr": vapsa_mr,
+            }
+        )
 
     @staticmethod
     def classify_ph(ph: float) -> str:

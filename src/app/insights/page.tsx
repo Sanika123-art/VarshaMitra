@@ -23,30 +23,54 @@ import {
 } from "@/data/insights";
 import { getBlock } from "@/data/locations";
 import { pickName } from "@/lib/utils";
-import { TrendingUp, Droplets, Sprout, BarChart3, Database, ArrowRight } from "lucide-react";
-import { api, type DatasetSummaryResponse } from "@/lib/api";
+import { TrendingUp, Droplets, Sprout, BarChart3, Database, ArrowRight, RefreshCw, Radio } from "lucide-react";
+import { api, type DatasetSummaryResponse, type HistoricalTrendsResponse } from "@/lib/api";
+import { useAppState } from "@/hooks/useAppState";
 
 export default function InsightsPage() {
   const { t, language } = useTranslation();
+  const { location } = useAppState();
   const [datasetSummary, setDatasetSummary] = useState<DatasetSummaryResponse | null>(null);
+  const [trends, setTrends] = useState<HistoricalTrendsResponse | null>(null);
+  const [loadingTrends, setLoadingTrends] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadDatasetSummary() {
+    async function loadData() {
       try {
-        const res = await api.getDatasetSummary();
-        if (!cancelled) setDatasetSummary(res);
+        const [sumRes, trendsRes] = await Promise.allSettled([
+          api.getDatasetSummary(),
+          api.getHistoricalTrends(location?.blockId || "baramati"),
+        ]);
+        if (!cancelled) {
+          if (sumRes.status === "fulfilled") setDatasetSummary(sumRes.value);
+          if (trendsRes.status === "fulfilled") setTrends(trendsRes.value);
+        }
       } catch {
         // Fallback remains active
+      } finally {
+        if (!cancelled) setLoadingTrends(false);
       }
     }
 
-    loadDatasetSummary();
+    loadData();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [location?.blockId]);
+
+  const activeTrendData = trends?.historical_trend && trends.historical_trend.length > 0
+    ? trends.historical_trend
+    : historicalTrend;
+
+  const activeDistrictData = trends?.dry_spell_frequency_by_district && trends.dry_spell_frequency_by_district.length > 0
+    ? trends.dry_spell_frequency_by_district
+    : drySpellFrequencyByDistrict;
+
+  const activeRiskPatterns = trends?.crop_risk_patterns && trends.crop_risk_patterns.length > 0
+    ? trends.crop_risk_patterns
+    : cropRiskPatterns;
 
   return (
     <div className="space-y-8 bg-[#F4F0E5] text-[#252923]">
@@ -137,7 +161,7 @@ export default function InsightsPage() {
 
         <div className="mt-6 h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={historicalTrend} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
+            <BarChart data={activeTrendData} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
               <CartesianGrid stroke="#123C32" strokeOpacity={0.1} strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="year"
@@ -164,7 +188,7 @@ export default function InsightsPage() {
                 }}
               />
               <Bar dataKey="rainfallAnomalyPct" radius={[2, 2, 0, 0]}>
-                {historicalTrend.map((d, i) => (
+                {activeTrendData.map((d, i) => (
                   <Cell
                     key={i}
                     fill={d.rainfallAnomalyPct >= 0 ? "#2878A5" : "#E58A38"}
@@ -194,7 +218,7 @@ export default function InsightsPage() {
 
           <div className="mt-5 h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={historicalTrend} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
+              <LineChart data={activeTrendData} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
                 <CartesianGrid stroke="#123C32" strokeOpacity={0.1} strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="year"
@@ -247,7 +271,7 @@ export default function InsightsPage() {
           </div>
 
           <ul className="mt-5 space-y-3 font-mono text-xs">
-            {drySpellFrequencyByDistrict.map((d) => (
+            {activeDistrictData.map((d) => (
               <li key={d.districtId} className="flex items-center gap-3">
                 <span className="w-28 shrink-0 font-bold text-[#252923]">
                   {d.districtName}
@@ -290,7 +314,7 @@ export default function InsightsPage() {
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          {cropRiskPatterns.map((c, i) => {
+          {activeRiskPatterns.map((c, i) => {
             const b = getBlock(c.blockId);
             const bName = b ? pickName(b, language) : c.blockId;
             return (

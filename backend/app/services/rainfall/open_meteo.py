@@ -23,6 +23,7 @@ import httpx
 from app.core.logging import logger
 from app.schemas.location import BlockDetail
 from app.schemas.rainfall import (
+    CurrentWeatherSnapshot,
     DataType,
     ForecastItem,
     ForecastSeries,
@@ -297,6 +298,9 @@ class OpenMeteoRainfallProvider(RainfallProvider):
         time_list: List[str] = daily.get("time", [])
         precip_list: List[Optional[float]] = daily.get("precipitation_sum", [])
         prob_list: List[Optional[float]] = daily.get("precipitation_probability_max", [])
+        t_max_list: List[Optional[float]] = daily.get("temperature_2m_max", [])
+        t_min_list: List[Optional[float]] = daily.get("temperature_2m_min", [])
+        wind_list: List[Optional[float]] = daily.get("wind_speed_10m_max", [])
 
         forecast_items: List[ForecastItem] = []
         lead_day = 1
@@ -307,15 +311,24 @@ class OpenMeteoRainfallProvider(RainfallProvider):
             forecast_date = date.fromisoformat(t_str)
             p_val = precip_list[i] if i < len(precip_list) else None
             prob_val = prob_list[i] if i < len(prob_list) else None
+            t_max_val = t_max_list[i] if i < len(t_max_list) else None
+            t_min_val = t_min_list[i] if i < len(t_min_list) else None
+            wind_val = wind_list[i] if i < len(wind_list) else None
 
             p_float = round(float(p_val), 2) if p_val is not None and 0.0 <= float(p_val) <= 1500.0 else None
             prob_float = round(float(prob_val), 1) if prob_val is not None and 0.0 <= float(prob_val) <= 100.0 else None
+            t_max_float = round(float(t_max_val), 1) if t_max_val is not None and -50.0 <= float(t_max_val) <= 60.0 else None
+            t_min_float = round(float(t_min_val), 1) if t_min_val is not None and -50.0 <= float(t_min_val) <= 60.0 else None
+            wind_float = round(float(wind_val), 1) if wind_val is not None and 0.0 <= float(wind_val) <= 300.0 else None
 
             forecast_items.append(
                 ForecastItem(
                     date=forecast_date,
                     precipitation_sum_mm=p_float,
                     precipitation_probability_pct=prob_float,
+                    temperature_max_c=t_max_float,
+                    temperature_min_c=t_min_float,
+                    wind_speed_kmh=wind_float,
                     unit="mm",
                     horizon_day=lead_day,
                     data_type=DataType.FORECAST,
@@ -335,6 +348,17 @@ class OpenMeteoRainfallProvider(RainfallProvider):
             timezone=raw_data.get("timezone", "Asia/Kolkata"),
         )
 
+        current_data = raw_data.get("current", {})
+        current_snapshot = None
+        if current_data and "temperature_2m" in current_data:
+            current_snapshot = CurrentWeatherSnapshot(
+                temperature_c=round(float(current_data["temperature_2m"]), 1),
+                relative_humidity_pct=round(float(current_data.get("relative_humidity_2m", 0)), 1),
+                wind_speed_kmh=round(float(current_data.get("wind_speed_10m", 0)), 1),
+                observed_time=str(current_data.get("time", "")),
+                weather_condition="Clear Sky" if current_data.get("weather_code", 0) == 0 else "Partly Cloudy",
+            )
+
         return ForecastSeries(
             block_id=block.id,
             block_name=block.name,
@@ -345,6 +369,7 @@ class OpenMeteoRainfallProvider(RainfallProvider):
             forecast_generated_at=generated_at,
             forecast_days=requested_days,
             available_days=len(forecast_items),
+            current_weather=current_snapshot,
             forecast=forecast_items,
             provider=provider_meta,
             data_type=DataType.FORECAST,
@@ -365,7 +390,8 @@ class OpenMeteoRainfallProvider(RainfallProvider):
         params = {
             "latitude": block.latitude,
             "longitude": block.longitude,
-            "daily": "precipitation_sum,precipitation_probability_max",
+            "current": "temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code",
+            "daily": "precipitation_sum,precipitation_probability_max,temperature_2m_max,temperature_2m_min,wind_speed_10m_max",
             "forecast_days": days,
             "timezone": "Asia/Kolkata",
         }

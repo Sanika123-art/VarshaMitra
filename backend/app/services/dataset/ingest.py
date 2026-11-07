@@ -20,7 +20,6 @@ from app.schemas.rainfall import (
     QualityStatus,
 )
 from app.services.dataset.storage import dataset_storage
-from app.services.location_service import location_service
 from app.services.rainfall.factory import get_rainfall_provider
 from app.services.rainfall.open_meteo_archive import OpenMeteoArchiveProvider
 
@@ -32,6 +31,7 @@ async def ingest_historical_data(
     provider_key: str = "open-meteo-archive",
 ) -> DatasetIngestionSummary:
     """Ingest historical rainfall records for a Maharashtra administrative block with deduplication."""
+    from app.services.location_service import location_service
     block = location_service.get_block(block_id)
     if not block:
         raise HTTPException(

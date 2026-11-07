@@ -101,10 +101,39 @@ class ForecastItem(BaseModel):
         ge=0.0,
         le=100.0,
     )
+    temperature_max_c: Optional[float] = Field(
+        None,
+        description="Predicted daily maximum temperature in Celsius",
+        ge=-50.0,
+        le=60.0,
+    )
+    temperature_min_c: Optional[float] = Field(
+        None,
+        description="Predicted daily minimum temperature in Celsius",
+        ge=-50.0,
+        le=60.0,
+    )
+    wind_speed_kmh: Optional[float] = Field(
+        None,
+        description="Predicted maximum wind speed in km/h",
+        ge=0.0,
+        le=300.0,
+    )
     unit: str = Field(default="mm", description="Measurement unit (always millimeters)")
     horizon_day: int = Field(..., description="Forecast lead time in days (1 = tomorrow, 2 = day 2, ...)")
     data_type: DataType = Field(default=DataType.FORECAST, description="Always labeled forecast")
     notes: Optional[str] = Field(None, description="Atmospheric model run or horizon limitation note")
+
+
+class CurrentWeatherSnapshot(BaseModel):
+    """Real-time current meteorological observation snapshot."""
+    model_config = ConfigDict(extra="forbid")
+
+    temperature_c: float = Field(..., description="Current live temperature in Celsius")
+    relative_humidity_pct: Optional[float] = Field(None, description="Current relative humidity %")
+    wind_speed_kmh: Optional[float] = Field(None, description="Current wind speed in km/h")
+    observed_time: Optional[str] = Field(None, description="Observation timestamp in IST")
+    weather_condition: Optional[str] = Field(None, description="Current sky condition description")
 
 
 class ForecastSeries(BaseModel):
@@ -120,6 +149,7 @@ class ForecastSeries(BaseModel):
     forecast_generated_at: dt_datetime = Field(..., description="UTC timestamp of forecast model cycle")
     forecast_days: int = Field(..., description="Number of future days requested (1 to 14)")
     available_days: int = Field(..., description="Number of future days with valid prediction from provider")
+    current_weather: Optional[CurrentWeatherSnapshot] = Field(None, description="Live current instantaneous weather observation")
     forecast: List[ForecastItem] = Field(..., description="Chronological future forecast days")
     provider: ProviderMetadata = Field(..., description="Forecast provider attribution")
     data_type: DataType = Field(default=DataType.FORECAST, description="Strictly marked as forecast")

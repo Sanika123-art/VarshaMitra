@@ -67,7 +67,7 @@ async def get_crop_advisory(
     acc = compute_accumulation(obs_series.observations)
     dry = compute_dry_spells(obs_series.observations)
     heavy = compute_heavy_rain(obs_series.observations)
-    anomaly = compute_rainfall_anomaly(observed_mm=acc.total_mm)
+    anomaly = compute_rainfall_anomaly(observed_mm=acc.total_mm, district_id=block.district_id, window_days=14)
     onset = compute_monsoon_onset(obs_series.observations)
     quality = compute_data_quality(obs_series.observations)
 
@@ -178,7 +178,7 @@ async def explain_advisory_endpoint(
     acc = compute_accumulation(obs_series.observations)
     dry = compute_dry_spells(obs_series.observations)
     heavy = compute_heavy_rain(obs_series.observations)
-    anomaly = compute_rainfall_anomaly(observed_mm=acc.total_mm)
+    anomaly = compute_rainfall_anomaly(observed_mm=acc.total_mm, district_id=block.district_id, window_days=14)
     onset = compute_monsoon_onset(obs_series.observations)
     quality = compute_data_quality(obs_series.observations)
 

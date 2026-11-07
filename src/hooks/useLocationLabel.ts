@@ -7,7 +7,7 @@ import { pickName } from "@/lib/utils";
 
 /** Localized names for the user's selected location (state, district, block). */
 export function useLocationLabel() {
-  const { location } = useAppState();
+  const { location, farmerProfile } = useAppState();
   const { language } = useTranslation();
   const block = getBlock(location.blockId);
   const district = getDistrict(location.districtId);
@@ -27,5 +27,14 @@ export function useLocationLabel() {
   }
 
   const stateName = language === "mr" ? "महाराष्ट्र" : "Maharashtra";
-  return { blockName, districtName, stateName, full: `${blockName}, ${districtName}` };
+
+  const villageName = language === "mr"
+    ? (farmerProfile?.villageNameMr || farmerProfile?.villageName)
+    : (farmerProfile?.villageName);
+
+  const full = villageName
+    ? `${villageName}, ${blockName}`
+    : `${blockName}, ${districtName}`;
+
+  return { blockName, districtName, stateName, villageName, full };
 }

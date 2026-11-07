@@ -26,6 +26,7 @@ import {
   type ForecastSeries,
 } from "@/lib/api";
 import { ApiUnavailableState, LoadingBlock } from "@/components/ui/States";
+import RuralSmsSimulator from "@/components/officer/RuralSmsSimulator";
 
 export default function OfficerDashboard() {
   const { t, language } = useTranslation();
@@ -378,6 +379,26 @@ export default function OfficerDashboard() {
         </div>
 
       </div>
+
+      {/* ── Rural 2G Feature Phone SMS & WhatsApp Broadcast Console ── */}
+      {inspectedItem && (
+        <RuralSmsSimulator
+          blockName={language === "mr" ? inspectedItem.block_name_mr : inspectedItem.block_name}
+          districtName={inspectedItem.district_name}
+          riskLevel={inspectedItem.overall_risk ?? "moderate"}
+          primaryDriver={inspectRisk?.risk_drivers?.[0]?.name}
+          forecastRainMm={
+            inspectForecast?.forecast?.length
+              ? Math.round(
+                  inspectForecast.forecast.reduce(
+                    (acc, curr) => acc + (curr.precipitation_sum_mm || 0),
+                    0
+                  ) * 10
+                ) / 10
+              : 14.5
+          }
+        />
+      )}
 
     </div>
   );

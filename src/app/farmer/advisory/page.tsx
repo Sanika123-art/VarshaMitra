@@ -34,6 +34,7 @@ import {
   type RiskLevel,
 } from "@/lib/api";
 import { Photo } from "@/components/ui";
+import AudioAdvisoryPlayer from "@/components/audio/AudioAdvisoryPlayer";
 
 export default function AdvisoryPage() {
   const { t, language } = useTranslation();
@@ -335,6 +336,15 @@ export default function AdvisoryPage() {
                 {water}
               </p>
             </div>
+
+            {/* Audio Voice Player */}
+            <AudioAdvisoryPlayer
+              title={language === "mr" ? "सल्ला ऐका (मराठी आवाज)" : "Listen to Advisory (Voice)"}
+              textToRead={`${headline}. ${water}. ${reason}`}
+              cropName={cropName}
+              stageName={stageName}
+              compact
+            />
 
             {/* Why this recommendation is made */}
             <div className="rounded-lg border-2 border-[#123C32]/20 bg-white p-4">

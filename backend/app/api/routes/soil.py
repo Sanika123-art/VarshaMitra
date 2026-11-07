@@ -30,7 +30,7 @@ async def get_block_soil_profile(block_id: str) -> RegionalSoilSummaryResponse:
             detail=f"Block '{block_id}' not found in curated Maharashtra dataset.",
         )
 
-    return soil_service.get_regional_profile(block_id)
+    return await soil_service.get_regional_profile_with_live_diagnostics(block)
 
 
 @router.post(

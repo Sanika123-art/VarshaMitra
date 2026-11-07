@@ -44,6 +44,14 @@ import {
 import { Photo } from "@/components/ui";
 import { RainfallBars } from "@/features/charts/RainfallCharts";
 import { ApiUnavailableState, InlineAlert } from "@/components/ui/States";
+import AudioAdvisoryPlayer from "@/components/audio/AudioAdvisoryPlayer";
+import SoilVapsaDepthWidget from "@/components/soil/SoilVapsaDepthWidget";
+import PmfbyInsuranceCard from "@/components/insurance/PmfbyInsuranceCard";
+import OfficerBroadcastBanner from "@/components/farmer/OfficerBroadcastBanner";
+import FarmerIdentityHeader from "@/components/farmer/FarmerIdentityHeader";
+import SprayWindowAndWeatherCard from "@/components/farmer/SprayWindowAndWeatherCard";
+import ApmcMandiRatesCard from "@/components/farmer/ApmcMandiRatesCard";
+import EmergencyKisanSupportCard from "@/components/farmer/EmergencyKisanSupportCard";
 
 function formatSoilTexture(tex: string | undefined, isMr: boolean): string {
   if (!tex) return isMr ? "काळी कसदार जमीन" : "Deep Black Clay Soil";
@@ -72,9 +80,38 @@ function formatSoilTexture(tex: string | undefined, isMr: boolean): string {
   return (isMr ? map[tex]?.mr : map[tex]?.en) || tex.replace(/_/g, " ");
 }
 
+function translateCaveatOrRisk(text: string, isMr: boolean): string {
+  if (!isMr || !text) return text;
+  if (text.includes("deep hoeing in moist black cotton soil") || text.includes("Avoid deep hoeing")) {
+    return "हवामानाचा कोणताही प्रतिकूल इशारा नाही. मात्र भारी काळ्या जमिनीत ओल असताना खोल कोळपणी करू नये, अन्यथा मुळांना इजा होऊ शकते.";
+  }
+  if (text.includes("Water drainage must be executed") || text.includes("drainage channels")) {
+    return "कोणतीही रासायनिक आळवणी करण्यापूर्वी शेतातील साचलेल्या पाण्याचा पूर्ण निचरा करणे अनिवार्य आहे.";
+  }
+  if (text.includes("Economic Threshold Level") || text.includes("ETL")) {
+    return "किडींची संख्या आर्थिक नुकसान पातळी (ETL) ओलांडल्याशिवाय रासायनिक कीटकनाशकांची फवारणी करू नये.";
+  }
+  if (text.includes("Rain in the last 14 days") || text.includes("commonly advised before sowing")) {
+    return "मागील १४ दिवसांतील पाऊस पेरणीसाठी आवश्यक असलेल्या किमान प्रमाणापेक्षा कमी आहे; कोरड्या जमिनीत पेरणी टाळावी.";
+  }
+  if (text.includes("Forecast shows 6 or more dry days") || text.includes("young seedlings may dry out") || text.includes("dry days in the next week")) {
+    return "पुढील आठवड्यात कोरड्या दिवसांचा अंदाज असल्याने सिंचनाची सोय असल्याशिवाय पेरणी करू नये.";
+  }
+  if (text.includes("chemical fungicides and bio-culture") || text.includes("bio-culture at the same time")) {
+    return "रासायनिक बुरशीनाशक व जैविक संवर्धन एकत्र मिसळू नये; रासायनिक बीजप्रक्रिया २४ तास आधी करावी.";
+  }
+  if (text.includes("Provisional rule") || text.includes("Check your irrigation source")) {
+    return "स्थानिक सिंचन उपलब्धता व पीक दिनदर्शिकेनुसारच शेती कामांचे नियोजन करावे.";
+  }
+  if (text.includes("Maturity signs differ") || text.includes("safe storage moisture")) {
+    return "पिकाची काढणी योग्य परिपक्वतेच्या लक्षणांनंतरच करावी; काढणीनंतर धान्य उन्हात चांगले वाळवून साठवावे.";
+  }
+  return text;
+}
+
 export default function FarmerDashboard() {
   const { t, language } = useTranslation();
-  const { location, cropId, stageId, hydrated } = useAppState();
+  const { location, cropId, stageId, hydrated, farmerProfile } = useAppState();
   const { blockName: localizedBlock, districtName: localizedDistrict } = useLocationLabel();
   const [whyOpen, setWhyOpen] = useState(false);
 
@@ -262,20 +299,40 @@ export default function FarmerDashboard() {
 
   // AVOID actions
   const avoidItems: string[] = [];
-  if (liveAdvisory?.primary_advisory?.caveats) {
-    avoidItems.push(liveAdvisory.primary_advisory.caveats);
+  if (liveAdvisory?.primary_advisory) {
+    const rawCav = liveAdvisory.primary_advisory.caveats_mr || liveAdvisory.primary_advisory.caveats;
+    const cav = isMr ? translateCaveatOrRisk(rawCav, true) : liveAdvisory.primary_advisory.caveats;
+    if (cav && !avoidItems.includes(cav)) avoidItems.push(cav);
   }
-  if (liveSowing?.risk_factors && liveSowing.risk_factors.length > 0) {
+
+  // Sowing risks ONLY if currently in sowing stage
+  if (isSowingStage && liveSowing?.risk_factors && liveSowing.risk_factors.length > 0) {
     liveSowing.risk_factors.forEach((rf) => {
-      avoidItems.push(rf);
+      const trans = isMr ? translateCaveatOrRisk(rf, true) : rf;
+      if (!avoidItems.includes(trans)) avoidItems.push(trans);
     });
   }
+
+  // Heavy rain event constraint
   if (liveIndicators?.heavy_rain?.has_heavy_rain_event) {
     avoidItems.push(
       isMr
         ? "मुसळधार पाऊस सुरू असताना खते किंवा कीटकनाशकांची फवारणी करू नका."
         : "Avoid open fertilizer top-dressing or pesticide spraying during forecasted heavy rainfall events."
     );
+  }
+
+  // If in vegetative or flowering stage, add standard stage-specific agronomic precautions
+  if (!isSowingStage) {
+    const middayWarning = isMr
+      ? "दुपारी १२:०० ते ३:०० च्या तीव्र उन्हात फवारणी करू नये; औषध उडून जाते व पाने करपण्याचा (Phytotoxicity) धोका असतो."
+      : "Avoid chemical spraying during midday heat (12:00–3:00 PM) to prevent rapid evaporation and leaf scorch.";
+    if (!avoidItems.includes(middayWarning)) avoidItems.push(middayWarning);
+
+    const vapsaWarning = isMr
+      ? "जमिनीत योग्य वाफसा (ओलावा) नसताना नत्राचा (युरिया) दुसरा हप्ता देणे टाळावे."
+      : "Avoid applying top-dressed nitrogen fertilizer unless soil has adequate moisture (vapsa).";
+    if (!avoidItems.includes(vapsaWarning)) avoidItems.push(vapsaWarning);
   }
 
   // Weather calculations
@@ -319,48 +376,24 @@ export default function FarmerDashboard() {
   return (
     <div className="space-y-8 bg-[#F4F0E5] text-[#252923]">
       
-      {/* ── Editorial Location & Cockpit Topbar ── */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-[#123C32]/20 pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="rounded border border-[#123C32] bg-[#123C32] px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-[#F4F0E5]">
-              Cockpit
-            </span>
-            <span className="font-mono text-xs font-semibold text-[#123C32]">
-              {districtName} · Block {blockName}
-            </span>
-          </div>
-          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-[#123C32] sm:text-3xl">
-            {t("farmerDashboard.title", { location: blockName })}
-          </h1>
-        </div>
+      {/* ── Official Farmer & Farm Identity Cockpit Strip ── */}
+      <FarmerIdentityHeader
+        farmerProfile={farmerProfile}
+        location={location}
+        cropName={cropName}
+        stageName={stageName}
+        cropId={cropId}
+        isMr={isMr}
+      />
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <Link
-            href="/farmer/saarthi"
-            className="flex items-center gap-1.5 rounded-lg border-2 border-[#E6A52E] bg-[#E6A52E]/15 px-3 py-2 font-mono text-xs font-bold uppercase tracking-wider text-[#123C32] shadow-[2px_2px_0px_#E6A52E] transition hover:bg-[#E6A52E]/30"
-          >
-            <Sparkles size={14} className="text-[#E6A52E]" />
-            <span>{t("nav.saarthi")}</span>
-          </Link>
-
-          <Link
-            href="/farmer/crop"
-            className="flex items-center gap-1.5 rounded-lg border-2 border-[#123C32] bg-white px-3 py-2 font-mono text-xs font-bold uppercase tracking-wider text-[#123C32] shadow-[2px_2px_0px_#123C32] transition hover:bg-[#123C32]/5"
-          >
-            <Sprout size={14} className="text-[#123C32]" />
-            <span>{t("farmerDashboard.changeCrop")}</span>
-          </Link>
-
-          <Link
-            href="/farmer/risk-map"
-            className="flex items-center gap-1.5 rounded-lg border-2 border-[#123C32] bg-[#123C32] px-3 py-2 font-mono text-xs font-bold uppercase tracking-wider text-[#F4F0E5] shadow-[2px_2px_0px_#252923] transition hover:bg-[#172B4D]"
-          >
-            <Layers size={14} className="text-[#E6A52E]" />
-            <span>{t("nav.riskMap")}</span>
-          </Link>
-        </div>
-      </div>
+      {/* ── Official Emergency Broadcast Banner from Agriculture Officer (Top of Screen) ── */}
+      <OfficerBroadcastBanner
+        currentBlockName={localizedBlock || location.blockName}
+        currentDistrictName={localizedDistrict || location.districtName}
+        currentVillageName={
+          (isMr ? farmerProfile?.villageNameMr : farmerProfile?.villageName) || farmerProfile?.villageName
+        }
+      />
 
       {/* ── Active Crop & Risk Telemetry Strip ── */}
       <div className="grid gap-3 sm:grid-cols-4">
@@ -408,6 +441,13 @@ export default function FarmerDashboard() {
         </InlineAlert>
       )}
 
+      {/* ── Spray Weather Window & Today/Tomorrow Hyperlocal Outlook ── */}
+      <SprayWindowAndWeatherCard
+        forecast={liveForecast}
+        cropName={cropName}
+        isMr={isMr}
+      />
+
       {/* ───────────────────────────────────────────────────────────
           SECTION B — DOMINANT RECOMMENDATION COCKPIT (HEROIC CARD)
           ─────────────────────────────────────────────────────────── */}
@@ -453,6 +493,30 @@ export default function FarmerDashboard() {
                 {mainReason}
               </p>
             )}
+
+            {/* Audio Voice Player & WhatsApp Advisory Sharing */}
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#123C32]/15 bg-[#F4F0E5]/50 p-3">
+              <div className="flex-1 min-w-[260px]">
+                <AudioAdvisoryPlayer
+                  title={isMr ? "आजचा कृषी सल्ला ऑडिओ (मराठी आवाज)" : "Listen to Advisory (Audio)"}
+                  textToRead={`${mainHeadline}. ${mainReason}. ${doItems.length > 0 ? (isMr ? "महत्त्वाची शेती कामे: " : "Recommended field operations: ") + doItems.slice(0, 3).join(". ") : ""}`}
+                  cropName={cropName}
+                  stageName={stageName}
+                />
+              </div>
+
+              {/* WhatsApp 1-Click Share Button */}
+              <a
+                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                  `*वर्षा मित्र (VarshaMitra) कृषी सल्ला* 🌾\n\n📍 *स्थान:* ${localizedBlock} (${localizedDistrict})\n🌱 *पीक:* ${cropName} (${stageName})\n\n⚠️ *आजचा महत्त्वाचा सल्ला:*\n${mainHeadline}\n\n💡 *महत्त्वाची शेती कामे:*\n${doItems.slice(0, 3).map((item) => `• ${item}`).join("\n")}\n\n📞 पीएमएफबीवाय हेल्पलाइन: 14447`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-[#25D366] bg-[#25D366]/15 px-4 py-2.5 font-mono text-xs font-bold text-[#128C7E] shadow-[2px_2px_0px_#25D366] hover:bg-[#25D366] hover:text-white transition"
+              >
+                <span>📲 {isMr ? "व्हॉट्सॲपवर मित्रांना पाठवा" : "Share on WhatsApp"}</span>
+              </a>
+            </div>
           </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t-2 border-[#123C32]/10 pt-4">
@@ -477,7 +541,7 @@ export default function FarmerDashboard() {
       <section aria-labelledby="section-actions">
         <div className="mb-4">
           <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#123C32]">
-            Field Operations
+            {isMr ? "शेतातील कामे" : "Field Operations"}
           </span>
           <h2 id="section-actions" className="font-display text-xl font-bold text-[#123C32]">
             {t("farmerDashboard.sectionC")}
@@ -495,7 +559,9 @@ export default function FarmerDashboard() {
                 <h3 className="font-display text-base font-bold text-[#123C32]">
                   {t("farmerDashboard.doTitle")}
                 </h3>
-                <span className="font-mono text-[10px] uppercase text-[#3B8B61]">Recommended Field Work</span>
+                <span className="font-mono text-[10px] uppercase text-[#3B8B61]">
+                  {isMr ? "शिफारस केलेली कामे" : "Recommended Field Work"}
+                </span>
               </div>
             </div>
             <ul className="mt-4 space-y-3">
@@ -524,7 +590,9 @@ export default function FarmerDashboard() {
                 <h3 className="font-display text-base font-bold text-[#C7473B]">
                   {t("farmerDashboard.avoidTitle")}
                 </h3>
-                <span className="font-mono text-[10px] uppercase text-[#C7473B]">Risky / Prohibited Actions</span>
+                <span className="font-mono text-[10px] uppercase text-[#C7473B]">
+                  {isMr ? "धोकादायक / टाळायची कामे" : "Risky / Prohibited Actions"}
+                </span>
               </div>
             </div>
             <ul className="mt-4 space-y-3">
@@ -544,6 +612,14 @@ export default function FarmerDashboard() {
           </div>
         </div>
       </section>
+
+      {/* ── APMC Mandi Rates for Current Crop ── */}
+      <ApmcMandiRatesCard
+        cropId={cropId}
+        cropName={cropName}
+        blockId={location.blockId}
+        isMr={isMr}
+      />
 
       {/* ───────────────────────────────────────────────────────────
           SECTION D — WHY WE ARE RECOMMENDING THIS (PLAIN LANGUAGE)
@@ -670,6 +746,11 @@ export default function FarmerDashboard() {
       </section>
 
       {/* ───────────────────────────────────────────────────────────
+          LIVE SOIL STRATA & REAL-TIME VAPSA DEPTH GAUGE
+          ─────────────────────────────────────────────────────────── */}
+      <SoilVapsaDepthWidget soil={liveSoil} cropName={cropName} />
+
+      {/* ───────────────────────────────────────────────────────────
           SECTION E — 14-DAY CALIBRATED RAINFALL CHART
           ─────────────────────────────────────────────────────────── */}
       <section aria-labelledby="section-weather-forecast">
@@ -685,10 +766,10 @@ export default function FarmerDashboard() {
             </div>
             <div className="flex flex-wrap gap-2 font-mono text-xs">
               <span className="rounded border-2 border-[#123C32]/30 bg-[#F4F0E5] px-2.5 py-1 text-[#252923]">
-                Past 14d: <strong className="text-[#123C32]">{antecedentRain14d} mm</strong>
+                {isMr ? "मागील १४ दिवस: " : "Past 14d: "}<strong className="text-[#123C32]">{antecedentRain14d} mm</strong>
               </span>
               <span className="rounded border-2 border-[#123C32] bg-[#123C32] px-2.5 py-1 text-[#F4F0E5]">
-                Next 14d: <strong className="text-[#E6A52E]">{forecastTotal14d} mm</strong>
+                {isMr ? "पुढील १४ दिवस: " : "Next 14d: "}<strong className="text-[#E6A52E]">{forecastTotal14d} mm</strong>
               </span>
             </div>
           </div>
@@ -699,13 +780,13 @@ export default function FarmerDashboard() {
               <RainfallBars points={rainfallPoints} height={210} />
             ) : (
               <div className="flex h-44 items-center justify-center font-mono text-xs text-[#252923]/60">
-                {apiLoading ? "Calibrating forecast horizon..." : "No forecast series available."}
+                {apiLoading ? (isMr ? "हवामान अंदाज कॅलिब्रेट होत आहे..." : "Calibrating forecast horizon...") : (isMr ? "हवामान डेटा उपलब्ध नाही." : "No forecast series available.")}
               </div>
             )}
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#123C32]/15 pt-3 font-mono text-xs text-[#252923]/60">
-            <span>Provider: {liveForecast?.provider?.provider_name || "Open-Meteo Ensemble"}</span>
+            <span>{isMr ? "हवामान डेटा स्रोत: " : "Provider: "}{liveForecast?.provider?.provider_name || "Open-Meteo Ensemble"}</span>
             <Link
               href="/farmer/climate"
               className="flex items-center gap-1 font-bold text-[#123C32] underline hover:no-underline"
@@ -723,7 +804,7 @@ export default function FarmerDashboard() {
       <section aria-labelledby="section-farm-risks">
         <div className="mb-4">
           <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#123C32]">
-            Risk Radar
+            {isMr ? "जोखीम रडार" : "Risk Radar"}
           </span>
           <h2 id="section-farm-risks" className="font-display text-xl font-bold text-[#123C32]">
             {t("farmerDashboard.sectionF")}
@@ -820,6 +901,36 @@ export default function FarmerDashboard() {
           </div>
         </div>
       </section>
+
+      {/* ───────────────────────────────────────────────────────────
+          SECTION G — PMFBY CROP INSURANCE CLAIM DOSSIER GENERATOR
+          ─────────────────────────────────────────────────────────── */}
+      <section aria-labelledby="section-pmfby-dossier">
+        <PmfbyInsuranceCard
+          farmerName={farmerProfile?.farmerName}
+          gatNumber={farmerProfile?.gatNumber}
+          blockId={location.blockId}
+          blockName={localizedBlock}
+          districtName={localizedDistrict}
+          cropName={cropName}
+          rainfallHistoryMm={antecedentRain14d}
+          dryDaysStreak={dryDaysStreak}
+          heavyRainMax={heavyRainMax}
+          soilMoisturePct={
+            liveSoil?.live_soil_moisture_0_to_7cm
+              ? Math.round(liveSoil.live_soil_moisture_0_to_7cm * 1000) / 10
+              : 28.5
+          }
+          inMonsoon={inMonsoon}
+        />
+      </section>
+
+      {/* ── Emergency Farmer Helplines & KCC Assistance ── */}
+      <EmergencyKisanSupportCard
+        blockName={localizedBlock || location.blockName}
+        districtName={localizedDistrict || location.districtName}
+        isMr={isMr}
+      />
 
       {/* ── Footer Navigation Actions ── */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-t-2 border-[#123C32]/20 pt-6">

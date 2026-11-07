@@ -15,9 +15,11 @@ import type {
   DistrictDetail,
   ExplanationResponse,
   ForecastSeries,
+  HistoricalTrendsResponse,
   LocationResolveRequest,
   LocationSearchItem,
   LocationSearchResponse,
+  MandiRateResponse,
   RegionalSoilSummaryResponse,
   RiskAssessmentResponse,
   RiskSummaryResponse,
@@ -241,6 +243,12 @@ export const api = {
     return request("/api/v1/dataset/summary");
   },
 
+  // Dynamic Historical Trends & Climatology
+  async getHistoricalTrends(blockId?: string): Promise<HistoricalTrendsResponse> {
+    const query = blockId ? `?block_id=${encodeURIComponent(blockId)}` : "";
+    return request(`/api/v1/dataset/historical-trends${query}`);
+  },
+
   // Saarthi AI Farming Companion
   async createChatConversation(payload: {
     locationId?: string;
@@ -259,6 +267,12 @@ export const api = {
         title: payload.title,
       }),
     });
+  },
+
+  async getMandiRates(cropId: string, blockId?: string): Promise<MandiRateResponse> {
+    const params = new URLSearchParams({ crop_id: cropId });
+    if (blockId) params.set("block_id", blockId);
+    return request(`/api/v1/mandi/rates?${params.toString()}`);
   },
 
   async getChatConversations(): Promise<ChatConversationItem[]> {

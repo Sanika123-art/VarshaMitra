@@ -33,6 +33,7 @@ import {
   type SuitabilityAssessmentResponse,
 } from "@/lib/api";
 import { Photo } from "@/components/ui";
+import SoilVapsaDepthWidget from "@/components/soil/SoilVapsaDepthWidget";
 
 const CATEGORY_TABS = [
   { id: "all", labelEn: "All Crops", labelMr: "सर्व पिके" },
@@ -53,6 +54,14 @@ export default function CropSelectPage() {
   const [catalogue, setCatalogue] = useState<CropRequirement[]>([]);
   const [selectedCrop, setSelectedCrop] = useState<string>(cropId || "soybean");
   const [selectedStage, setSelectedStage] = useState<string>(stageId || "sowing");
+
+  // Keep selectedCrop and selectedStage in sync when active context hydrates or changes
+  useEffect(() => {
+    if (hydrated && cropId) {
+      setSelectedCrop(cropId);
+      if (stageId) setSelectedStage(stageId);
+    }
+  }, [hydrated, cropId, stageId]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedSeason, setSelectedSeason] = useState<string>("all");
@@ -538,6 +547,9 @@ export default function CropSelectPage() {
               </div>
             </div>
           )}
+
+          {/* Live Soil Strata & Vapsa Depth Widget */}
+          <SoilVapsaDepthWidget soil={soil} cropName={activeCropSpec?.name} />
         </div>
       </div>
     </div>

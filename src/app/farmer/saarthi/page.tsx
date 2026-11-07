@@ -19,6 +19,9 @@ import {
   User,
   PanelLeftClose,
   PanelLeft,
+  Mic,
+  MicOff,
+  Volume2,
 } from "lucide-react";
 import { useTranslation } from "@/i18n/LanguageContext";
 import { useAppState } from "@/hooks/useAppState";
@@ -48,6 +51,117 @@ export default function SaarthiPage() {
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
   const [editingTitleText, setEditingTitleText] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
+
+  const toggleListening = () => {
+    if (typeof window === "undefined") return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setErrorMsg(language === "mr" ? "तुमच्या ब्राउझरमध्ये व्हॉईस सपोर्ट उपलब्ध नाही." : "Voice recognition is not supported in this browser.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = language === "mr" ? "mr-IN" : "en-IN";
+      recognition.interimResults = true;
+      recognition.continuous = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setErrorMsg(null);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join("");
+        setInputMessage(transcript);
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch {
+      setIsListening(false);
+    }
+  };
+
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+
+  const speakMessage = (msgId: string, text: string) => {
+    if (typeof window === "undefined") return;
+
+    if (speakingMsgId === msgId) {
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+        audioPlayerRef.current.currentTime = 0;
+      }
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      setSpeakingMsgId(null);
+      return;
+    }
+
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current.currentTime = 0;
+    }
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    const clean = text.replace(/[*#`•_]/g, "").trim();
+    const targetLang = language === "mr" ? "mr" : "en";
+
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+      const ttsUrl = `${backendUrl}/api/v1/tts?text=${encodeURIComponent(clean)}&lang=${targetLang}`;
+      const audio = new Audio(ttsUrl);
+      audioPlayerRef.current = audio;
+
+      setSpeakingMsgId(msgId);
+      audio.onended = () => setSpeakingMsgId(null);
+      audio.onerror = () => {
+        // Fallback to browser SpeechSynthesis
+        if ("speechSynthesis" in window) {
+          const u = new SpeechSynthesisUtterance(clean);
+          u.lang = targetLang === "mr" ? "mr-IN" : "en-IN";
+          u.rate = 0.95;
+          const voices = window.speechSynthesis.getVoices();
+          const mrVoice = voices.find((v) => v.lang.startsWith("mr") || v.lang.startsWith("hi"));
+          if (mrVoice) u.voice = mrVoice;
+          u.onend = () => setSpeakingMsgId(null);
+          u.onerror = () => setSpeakingMsgId(null);
+          window.speechSynthesis.speak(u);
+        } else {
+          setSpeakingMsgId(null);
+        }
+      };
+
+      audio.play().catch(() => {
+        audio.onerror?.(new Event("error"));
+      });
+    } catch {
+      setSpeakingMsgId(null);
+    }
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -530,14 +644,25 @@ export default function SaarthiPage() {
                       <div className="mt-2 flex items-center justify-between gap-4 font-mono text-[10px] opacity-75">
                         <span>{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                         {!isUser && (
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(m.content, m.id)}
-                            className="flex items-center gap-1 hover:text-[#123C32]"
-                          >
-                            {copiedId === m.id ? <Check size={11} /> : <Copy size={11} />}
-                            <span>{copiedId === m.id ? "Copied" : "Copy"}</span>
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => speakMessage(m.id, m.content)}
+                              className={`flex items-center gap-1 ${speakingMsgId === m.id ? "text-[#E6A52E] font-bold" : "hover:text-[#123C32]"}`}
+                              title="Listen aloud"
+                            >
+                              <Volume2 size={11} className={speakingMsgId === m.id ? "animate-pulse" : ""} />
+                              <span>{speakingMsgId === m.id ? (language === "mr" ? "ऐकत आहे..." : "Playing...") : (language === "mr" ? "ऐका" : "Speak")}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(m.content, m.id)}
+                              className="flex items-center gap-1 hover:text-[#123C32]"
+                            >
+                              {copiedId === m.id ? <Check size={11} /> : <Copy size={11} />}
+                              <span>{copiedId === m.id ? "Copied" : "Copy"}</span>
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -556,6 +681,21 @@ export default function SaarthiPage() {
 
           {/* Composer Box */}
           <div className="border-t-2 border-[#123C32] bg-white p-3 sm:p-4">
+            {isListening && (
+              <div className="mb-2 flex items-center justify-between rounded border border-[#C7473B] bg-[#F8E5E3] px-3 py-1 font-mono text-[11px] text-[#7F2017]">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-[#C7473B] animate-ping" />
+                  <span>{language === "mr" ? "तुमचा आवाज ऐकत आहे... (मराठीत बोला)" : "Listening to your voice... (Speak now)"}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className="font-bold underline hover:text-black"
+                >
+                  {language === "mr" ? "रद्द करा" : "Cancel"}
+                </button>
+              </div>
+            )}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -577,6 +717,18 @@ export default function SaarthiPage() {
                 placeholder={t("saarthi.inputPlaceholder")}
                 className="flex-1 resize-none rounded-lg border-2 border-[#123C32]/30 bg-[#F4F0E5]/60 px-3.5 py-2.5 font-sans text-xs sm:text-sm text-[#252923] outline-none transition focus:border-[#123C32] focus:bg-white"
               />
+              <button
+                type="button"
+                onClick={toggleListening}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-[#123C32] transition shadow-[2px_2px_0px_#252923] ${
+                  isListening
+                    ? "bg-[#C7473B] text-white animate-pulse"
+                    : "bg-white text-[#123C32] hover:bg-[#F4F0E5]"
+                }`}
+                title={isListening ? "Stop listening" : "Speak in Marathi / English"}
+              >
+                {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+              </button>
               <button
                 type="submit"
                 disabled={!inputMessage.trim() || isSending}
