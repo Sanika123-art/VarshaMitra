@@ -53,6 +53,7 @@ function PublicShell({ children }: { children: React.ReactNode }) {
   const { role, hydrated } = useAppState();
   const links = [
     { href: "/insights", label: t("nav.insights") },
+    { href: "/field-stories", label: t("nav.fieldStories") },
     { href: "/about", label: t("nav.about") },
   ];
   return (

@@ -107,6 +107,9 @@ Farmer sign-in and registration are currently a local demo stored on the device.
 ### Farmer feedback and WhatsApp community
 Farmer feedback is saved by the backend in its SQLite database and shown publicly. Sample posts in the portal are explicitly labeled as examples, not real testimonials. The feedback form does not ask for phone numbers and rejects phone-number-like text. The WhatsApp group invite is configured in `src/config/community.ts`; group membership and phone-number visibility are controlled by WhatsApp, not VarshaMitra.
 
+### Farmer field stories
+The public `/field-stories` page shares two consented farmer conversations: one recorded in the field and one beside produce at a market. The page labels them as conversations, not a representative survey or proof of impact. Videos are compressed MP4s in `public/videos/` with poster images in `public/images/`.
+
 ### Step 2: Start the Next.js Frontend
 In a separate terminal from repository root:
 ```bash

@@ -64,6 +64,7 @@ const en = {
     "saarthi": "Saarthi AI",
     "farmerFeedback": "Farmer voices",
     "farmerCommunity": "Farmer group",
+    "fieldStories": "Field stories",
     "groupMore": "More",
     "area": "Administrative Area"
   },
@@ -324,6 +325,30 @@ const en = {
     "roadmapBody": "Designed for end-to-end integration with IMD gridded datasets, numerical weather prediction models, official administrative block boundaries, and multi-channel farmer advisory distribution.",
     "prototypeTitle": "Data Provenance & System Integration Status",
     "prototypeBody": "VarshaMitra is an operational climate-risk intelligence platform developed by Team Bit2Bramha. While the platform architecture is structured for direct ingestion of IMD gridded observations and numerical ensemble forecasts, currently displayed indicators operate on calibrated staging baselines for validation. Data is provided for operational evaluation and decision support; no official government endorsement is implied."
+  },
+  "fieldStories": {
+    "eyebrow": "Field notes · real voices",
+    "title": "Good tools begin by listening.",
+    "intro": "Hear two conversations with farmers—one in the field and one beside produce at market. Their experiences with farming challenges and losses are part of why we are building VarshaMitra.",
+    "fieldVisit": "Recorded field conversation",
+    "twoVideos": "Two original videos",
+    "transparencyTitle": "A note about these recordings:",
+    "transparencyBody": "These are two recorded farmer conversations—not a representative survey, and not proof that the platform has prevented crop losses. We share them to show what we heard and why we are building.",
+    "videosLabel": "Two farmer conversation videos",
+    "fieldConversation": "FIELD CONVERSATION",
+    "marketConversation": "MARKET-SIDE CONVERSATION",
+    "storyNumber": "STORY {number}",
+    "farmerTitle": "A conversation from the field",
+    "farmerSubtitle": "Farmers share their own experience",
+    "farmerDescription": "Two farmers speak from their lived experience. Their voices remind us why local weather uncertainty and crop-loss risks need to be understood at the farm level.",
+    "marketTitle": "A farmer conversation at the market",
+    "marketSubtitle": "Listening beside the produce",
+    "marketDescription": "A second farmer conversation, recorded beside produce at market. It offers another perspective on farmers' day-to-day challenges and why timely, local information matters.",
+    "videoUnsupported": "Your browser cannot play this video. Try opening the page in an updated browser.",
+    "whyEyebrow": "Why we started",
+    "whyTitle": "A forecast matters when it helps with the next decision.",
+    "whyBody": "A broad weather bulletin may not explain what it means for a farmer's own place and crop. VarshaMitra is being developed to bring local climate context and crop guidance together—and to keep learning from farmers' real experiences.",
+    "learnMore": "How VarshaMitra works"
   },
   "footer": {
     "tagline": "Hyperlocal Rainfall Intelligence for Smarter Farming",

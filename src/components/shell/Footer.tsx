@@ -20,6 +20,7 @@ export default function Footer() {
     {
       title: t("footer.about"),
       links: [
+        { href: "/field-stories", label: t("nav.fieldStories") },
         { href: "/about", label: t("nav.about") },
         { href: "/about#data", label: t("footer.dataTransparency") },
         { href: "/about#credits", label: t("footer.imageCredits") },
