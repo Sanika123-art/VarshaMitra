@@ -1,7 +1,7 @@
 """Central API v1 Router."""
 
 from fastapi import APIRouter
-from app.api.routes import advisories, chat, climate, crops, dataset, health, locations, mandi, rainfall, risk, soil, tts
+from app.api.routes import advisories, chat, climate, community, crops, dataset, health, locations, mandi, rainfall, risk, soil, tts
 
 api_v1_router = APIRouter()
 
@@ -41,6 +41,7 @@ api_v1_router.include_router(tts.router)
 # Mount APMC Mandi rates routes (/api/v1/mandi/...)
 api_v1_router.include_router(mandi.router)
 
-
+# Farmer feedback routes (/api/v1/community/feedback)
+api_v1_router.include_router(community.router)
 
 

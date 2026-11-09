@@ -66,7 +66,7 @@ function humanizeKey(path: string): string {
 const localeFor: Record<Language, string> = { en: "en-IN", mr: "mr-IN" };
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("en");
+  const [language, setLanguageState] = useState<Language>("mr");
 
   useEffect(() => {
     const stored = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;

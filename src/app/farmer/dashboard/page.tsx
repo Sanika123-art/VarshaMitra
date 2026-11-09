@@ -382,7 +382,6 @@ export default function FarmerDashboard() {
         location={location}
         cropName={cropName}
         stageName={stageName}
-        cropId={cropId}
         isMr={isMr}
       />
 
@@ -618,6 +617,8 @@ export default function FarmerDashboard() {
         cropId={cropId}
         cropName={cropName}
         blockId={location.blockId}
+        blockName={localizedBlock}
+        districtName={localizedDistrict}
         isMr={isMr}
       />
 

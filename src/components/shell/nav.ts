@@ -4,9 +4,11 @@ import {
   LayoutDashboard,
   Map as MapIcon,
   MapPin,
+  MessageCircle,
   Sparkles,
   Sprout,
   TrendingUp,
+  Users,
   Wheat,
   type LucideIcon,
 } from "lucide-react";
@@ -64,6 +66,8 @@ export function navFor(role: UserRole): NavGroup[] {
     {
       labelKey: "nav.groupMore",
       items: [
+        { href: "/farmer/feedback", labelKey: "nav.farmerFeedback", icon: MessageCircle },
+        { href: "/farmer/community", labelKey: "nav.farmerCommunity", icon: Users },
         { href: "/insights", labelKey: "nav.insights", icon: TrendingUp },
         { href: "/about", labelKey: "nav.about", icon: Info },
       ],

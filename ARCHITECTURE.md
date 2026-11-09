@@ -117,6 +117,10 @@ src/
     media.ts                  # Photography assets & crop thumbnails
 ```
 
+### Map data and geometry limits
+
+The farmer and officer map routes use the same `/api/v1/risk/summary` risk data and `/api/v1/risk/boundaries` polygon data, with separate interfaces. Taluka polygons are from the pinned geoBoundaries India ADM3 release (2018), whose listed source is the Local Government Directory and whose license is ODbL 1.0. A polygon receives climate risk only when its district and normalized taluka name match a curated area and that area's approximate reference coordinate falls inside the polygon; unmatched polygons are displayed as no data. These boundaries are not cadastral, current official verification is not claimed, and climate estimates are not farm measurements. Forecast and historical products are available for selected locations only, not as statewide map aggregates.
+
 ### State Management
 - **`AppStateProvider`** (`src/hooks/useAppState.tsx`): Manages the farmer's active location (`SelectedLocation`), selected crop (`cropId`), growth stage (`stageId`), and user role (`role`), automatically hydrated from and persisted to `localStorage`.
 - **`LanguageProvider`** (`src/i18n/LanguageContext.tsx`): Reactive language toggle between English and Marathi (`mr`).

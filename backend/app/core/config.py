@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     IMD_API_BASE_URL: str = Field(default="https://api.imd.gov.in", description="IMD gateway base URL")
     CDSAPI_KEY: Union[str, None] = Field(default=None, description="Copernicus CDS personal access token")
     CDSAPI_URL: str = Field(default="https://cds.climate.copernicus.eu/api", description="Copernicus CDS API URL")
+    DATA_GOV_IN_API_KEY: Union[str, None] = Field(default=None, description="Data.gov.in API key for verified Agmarknet market prices")
 
     # Map overview (bulk risk) tuning
     RISK_SUMMARY_CACHE_TTL_SECONDS: int = Field(default=900, description="In-memory cache lifetime for the bulk risk summary")

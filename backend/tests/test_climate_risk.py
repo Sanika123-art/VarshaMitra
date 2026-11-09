@@ -288,6 +288,34 @@ class TestRiskEngine:
         assert res.confidence == ConfidenceLevel.NONE
         assert any(d.code == "insufficientDataCoverage" for d in res.risk_drivers)
 
+    @pytest.mark.parametrize(
+        "freshness",
+        [QualityStatus.STALE, QualityStatus.MISSING, QualityStatus.SYNTHETIC_STAGING],
+    )
+    def test_stale_or_synthetic_data_is_withheld_even_with_full_coverage(self, freshness):
+        quality = DataQualitySummary(
+            coverage_ratio=1.0,
+            is_sufficient=True,
+            freshness_status=freshness,
+            missing_days_count=0,
+        )
+        res = assess_climate_risk(
+            block_id="pune_haveli",
+            block_name="Haveli",
+            district_name="Pune",
+            start_date=date(2026, 7, 1),
+            end_date=date(2026, 7, 6),
+            accumulation=AccumulationIndicator(total_mm=10.0, valid_days_count=6, missing_days_count=0, daily_average_mm=1.67),
+            dry_spell=DrySpellIndicator(threshold_mm=2.5, dry_days_count=6, max_consecutive_dry_days=6, current_consecutive_dry_days=6, severity="mild"),
+            heavy_rain=HeavyRainIndicator(threshold_mm=64.5, heavy_rain_days_count=0, max_single_day_mm=5.0, event_dates=[], has_heavy_rain_event=False),
+            anomaly=AnomalyIndicator(observed_mm=10.0, status="normal", departure_pct=0.0, baseline_provenance="test"),
+            monsoon_onset=MonsoonOnsetIndicator(status="pending", criteria_summary="test"),
+            data_quality=quality,
+        )
+
+        assert res.overall_risk == RiskLevel.INSUFFICIENT_DATA
+        assert res.risk_drivers[0].code == "staleClimateData"
+
     def test_critical_risk_due_to_prolonged_dry_spell(self):
         acc = AccumulationIndicator(total_mm=0.0, valid_days_count=14, missing_days_count=0, daily_average_mm=0.0)
         dry = DrySpellIndicator(threshold_mm=2.5, dry_days_count=14, max_consecutive_dry_days=14, current_consecutive_dry_days=14, severity="critical")

@@ -55,7 +55,7 @@ VarshaMitra supports **any location across all of Maharashtra** (36 districts, ~
   - Deep Forest Green (`#1b3b2b`) for primary actions and navigation.
   - Monsoon Blue (`#1e5f74`) for rainfall intelligence.
   - Warm cream background (`#fbfbfa`) and restrained earthy accents.
-- **MapLibre GL 5.1.0** with OpenStreetMap raster tiles (zero API key requirement).
+- **MapLibre GL** risk maps default to a clean thematic choropleth, with road and satellite basemaps available as alternatives. They share backend-derived `/api/v1/risk/summary` data and `/api/v1/risk/boundaries` polygons. Taluka boundaries use the geoBoundaries India ADM3 (2018) release, sourced from the Local Government Directory and distributed under ODbL 1.0. Climate values remain approximate area-reference estimates, not farm-level measurements; polygons receive a risk color only when their name, district, and reference coordinate match a monitored area. The map shows taluka-level categories, not fine-grained raster hotspots.
 - **Recharts** for rainfall probability bands and temperature series.
 - **Lucide React** for iconography.
 - **Bilingual i18n**: English and Marathi (`mr`) language support across all routes.
@@ -67,6 +67,8 @@ VarshaMitra supports **any location across all of Maharashtra** (36 districts, ~
 - **Regional Soil Intelligence**: Agroclimatic soil baseline mapping (Vertisols / Black Cotton Soils vs. Coastal Laterites / Inceptisols).
 - **NuGen AI Grounded Explanations & Saarthi Chat Companion**: Conversational assistant with persistent SQLite conversation history and explainability layer grounded in deterministic meteorological and agronomic evidence.
 - **Local Persistence**: SQLite database storing multi-decadal historical climate series, dynamic geocoded locations, and Saarthi conversations.
+
+Boundary data can be regenerated with `python scripts/build_risk_map_boundaries.py` from the repository root. The script downloads the pinned geoBoundaries release and emits the Maharashtra-only source file under `backend/app/data`.
 
 ---
 
@@ -96,6 +98,14 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 Backend API will be active at `http://127.0.0.1:8000`.  
 Interactive OpenAPI documentation is available at `http://127.0.0.1:8000/docs`.
+
+### Verified market prices
+To show Agmarknet prices, set `DATA_GOV_IN_API_KEY` in `backend/.env` using a key issued by Data.gov.in, then restart the backend. The API only displays official records matching the selected crop and district. Without a key, the farmer dashboard shows static crop-specific demo prices alongside the selected district; these are clearly labeled as examples and must not be treated as today's market rates. If the official API is configured but has no matching records, no demo or other-district price is substituted. The dashboard links to [Agmarknet](https://agmarknet.gov.in/) for reference.
+
+Farmer sign-in and registration are currently a local demo stored on the device. SMS OTP and biometric authentication are not enabled; do not use the demo with sensitive personal information or on a shared device.
+
+### Farmer feedback and WhatsApp community
+Farmer feedback is saved by the backend in its SQLite database and shown publicly. Sample posts in the portal are explicitly labeled as examples, not real testimonials. The feedback form does not ask for phone numbers and rejects phone-number-like text. The WhatsApp group invite is configured in `src/config/community.ts`; group membership and phone-number visibility are controlled by WhatsApp, not VarshaMitra.
 
 ### Step 2: Start the Next.js Frontend
 In a separate terminal from repository root:
@@ -168,6 +178,7 @@ npm run build
 - **Crop Rules & Sowing Calendars**: Mahatma Phule Krishi Vidyapeeth (MPKV), Rahuri and Dr. Panjabrao Deshmukh Krishi Vidyapeeth (PDKV), Akola.
 - **Soil Baseline Data**: ICAR-NBSS&LUP agroclimatic soil classification. Regional Vertisol / Laterite baseline models are clearly identified as modeled estimates.
 - **Administrative Coordinates**: Centroids and geocoded points are geographic references; they do not represent surveyed cadastral farm boundaries.
+- **Map layer availability**: The map summary reports which layers are actually available. Forecast and historical rainfall are fetched for a selected area; regional forecast/history aggregation, crop-distribution map data, and farmer-report feeds are not currently provided by the map API. Missing layers are shown as unavailable, not inferred.
 
 ---
 

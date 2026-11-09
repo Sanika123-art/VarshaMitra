@@ -411,14 +411,15 @@ export interface NearbyMandiItem {
   market_id: string;
   market_name: string;
   market_name_mr: string;
-  distance_km: number;
-  distance_km_str: string;
+  variety?: string | null;
+  distance_km?: number | null;
+  distance_km_str?: string | null;
   is_nearest: boolean;
   modal_price: number;
   min_price: number;
   max_price: number;
-  arrivals: string;
-  arrivals_mr: string;
+  arrivals?: string | null;
+  arrivals_mr?: string | null;
   trend: string;
   trend_mr: string;
   selling_advice_en?: string | null;
@@ -429,30 +430,48 @@ export interface MandiRateResponse {
   crop_id: string;
   crop_name: string;
   crop_name_mr: string;
-  market_name: string;
-  market_name_mr: string;
+  market_name?: string | null;
+  market_name_mr?: string | null;
   district: string;
   district_mr: string;
   taluka?: string;
-  modal_price: number;
-  min_price: number;
-  max_price: number;
+  modal_price?: number | null;
+  min_price?: number | null;
+  max_price?: number | null;
   msp?: number | null;
   msp_difference?: number | null;
   unit: string;
   unit_mr: string;
-  arrivals: string;
-  arrivals_mr: string;
+  arrivals?: string | null;
+  arrivals_mr?: string | null;
   trend: string;
   trend_mr: string;
-  arrival_date: string;
-  sync_time: string;
+  arrival_date?: string | null;
+  sync_time?: string | null;
   source: string;
   source_url: string;
+  data_mode: "official" | "demo" | "unavailable";
   is_live_sync: boolean;
-  selling_advice_en: string;
-  selling_advice_mr: string;
+  data_available: boolean;
+  availability_code?: "invalid_location" | "unsupported_crop" | "api_key_missing" | "records_missing" | "incomplete_prices" | null;
+  availability_notice?: string | null;
+  selling_advice_en?: string | null;
+  selling_advice_mr?: string | null;
   nearby_mandis?: NearbyMandiItem[];
+}
+
+export interface FarmerFeedbackPost {
+  id: string;
+  display_name: string;
+  district: string;
+  taluka?: string | null;
+  rating: "helpful" | "slightly_high" | "slightly_low" | "not_sure" | "suggestion";
+  message: string;
+  created_at: string;
+}
+
+export interface FarmerFeedbackList {
+  items: FarmerFeedbackPost[];
 }
 
 export interface DatasetSummaryResponse {
@@ -504,8 +523,11 @@ export interface RiskSummaryItem {
   block_name_mr: string;
   district_id: string;
   district_name: string;
+  district_name_mr?: string;
   latitude: number;
   longitude: number;
+  geometry_type?: "Point" | "Polygon" | "MultiPolygon";
+  coordinates_precision?: string;
   status: "ok" | "unavailable";
   error?: string | null;
   overall_risk?: RiskLevel | null;
@@ -516,7 +538,13 @@ export interface RiskSummaryItem {
   max_single_day_mm?: number | null;
   accumulation_mm?: number | null;
   monsoon_onset_status?: string | null;
+  in_monsoon_season?: boolean | null;
   coverage_ratio?: number | null;
+  freshness_status?: "fresh" | "stale" | "provisional" | "missing" | "synthetic_staging_baseline" | null;
+  missing_days_count?: number | null;
+  confidence_rationale?: string | null;
+  assessment_time?: string | null;
+  data_provenance?: DataProvenance | null;
   window_start?: string | null;
   window_end?: string | null;
 }
@@ -534,6 +562,10 @@ export interface RiskSummaryResponse {
   method_version: string;
   data_provenance?: DataProvenance;
   provisional_notice: string;
+  geometry_type?: "Point" | "Polygon" | "MultiPolygon";
+  boundaries_available?: boolean;
+  boundary_source?: string | null;
+  layers_available?: Record<string, boolean>;
 }
 
 export interface BlocksResponse {
@@ -568,4 +600,3 @@ export interface ChatConversationItem {
 export interface ChatConversationDetail extends ChatConversationItem {
   messages: ChatMessageItem[];
 }
-

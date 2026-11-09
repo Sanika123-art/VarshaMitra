@@ -36,6 +36,14 @@ def test_risk_summary_endpoint(test_client):
     assert data["count"] > 0
     assert len(data["items"]) == data["count"]
     assert data["available_count"] > 0
+    assert data["geometry_type"] == "Point"
+    assert data["boundaries_available"] is True
+    assert "geoBoundaries" in data["boundary_source"]
+    assert data["layers_available"]["overall_risk"] is True
+    assert data["layers_available"]["rainfall_forecast"] is False
+    assert data["layers_available"]["historical_rainfall"] is False
+    assert data["layers_available"]["crop_distribution"] is False
+    assert data["layers_available"]["farmer_reports"] is False
 
     # Check structure of each item
     for item in data["items"]:
@@ -43,8 +51,11 @@ def test_risk_summary_endpoint(test_client):
         assert "block_name" in item
         assert "district_id" in item
         assert "district_name" in item
+        assert "district_name_mr" in item
         assert "latitude" in item
         assert "longitude" in item
+        assert item["geometry_type"] == "Point"
+        assert item["coordinates_precision"] == "approximate_centroid"
         assert "status" in item
         assert item["status"] in ["ok", "unavailable"]
         if item["status"] == "ok":
@@ -53,6 +64,28 @@ def test_risk_summary_endpoint(test_client):
             assert "dry_spell_severity" in item
             assert "heavy_rain_event" in item
             assert "monsoon_onset_status" in item
+            assert "data_provenance" in item
+            assert item["data_provenance"]["data_type"] in {
+                "observation",
+                "reanalysis",
+                "model_analysis",
+                "forecast",
+                "synthetic_test",
+            }
+            assert "assessment_time" in item
+
+
+def test_risk_boundaries_endpoint(test_client):
+    response = test_client.get("/api/v1/risk/boundaries")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/geo+json")
+    data = response.json()
+    assert data["type"] == "FeatureCollection"
+    assert data["metadata"]["boundary_year"] == "2018"
+    assert data["metadata"]["boundary_license"] == "Open Data Commons Open Database License 1.0"
+    assert len(data["features"]) >= 300
+    assert sum(feature["properties"]["risk_block_id"] is not None for feature in data["features"]) >= 100
+    assert all(feature["geometry"]["type"] in {"Polygon", "MultiPolygon"} for feature in data["features"])
 
 
 def test_risk_summary_window_days_validation(test_client):

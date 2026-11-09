@@ -2,16 +2,11 @@
 
 import Link from "next/link";
 import {
-  User,
   MapPin,
-  FileText,
   Layers,
   Sprout,
   Sparkles,
-  Phone,
   Droplets,
-  Calendar,
-  CheckCircle2,
   RefreshCw,
 } from "lucide-react";
 import type { FarmerProfile } from "@/hooks/useAppState";
@@ -22,7 +17,6 @@ interface FarmerIdentityHeaderProps {
   location: SelectedLocation;
   cropName: string;
   stageName: string;
-  cropId: string;
   isMr: boolean;
 }
 
@@ -31,13 +25,10 @@ export default function FarmerIdentityHeader({
   location,
   cropName,
   stageName,
-  cropId,
   isMr,
 }: FarmerIdentityHeaderProps) {
-  const farmerName = farmerProfile?.farmerName || (isMr ? "प्रगतीशील शेतकरी" : "Registered Farmer");
-  const mobile = farmerProfile?.mobileNumber || "7249702373";
-  const gatNo = farmerProfile?.gatNumber || "42/B";
-  const acres = farmerProfile?.landAcres || 2.5;
+  const farmerName = farmerProfile?.farmerName || (isMr ? "शेतकरी मित्र" : "Farmer friend");
+  const acres = farmerProfile?.landAcres;
   const isIrrigated = farmerProfile?.irrigationType === "irrigated";
 
   // Location display
@@ -64,20 +55,17 @@ export default function FarmerIdentityHeader({
           
           {/* Top Badges */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#3B8B61] bg-[#3B8B61]/30 px-3 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-[#A3E635]">
-              <CheckCircle2 size={12} />
-              {isMr ? "नोंदणीकृत शेतकरी कॉकपिट" : "Verified Farmer Cockpit"}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#3B8B61] bg-[#3B8B61]/30 px-3 py-1 text-sm font-bold text-[#D9F99D]">
+              <Sprout size={12} />
+              {isMr ? "नमस्कार शेतकरी मित्रा!" : "Hello, farmer friend!"}
             </span>
 
-            <span className="inline-flex items-center gap-1 rounded border border-[#E6A52E]/40 bg-[#E6A52E]/10 px-2 py-0.5 font-mono text-[10px] text-[#E6A52E]">
-              <Phone size={10} />
-              <span>+91 {mobile}</span>
-            </span>
-
-            <span className="rounded border border-[#F4F0E5]/20 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-[#F4F0E5]/80">
-              {isMr ? "७/१२ गट क्र: " : "7/12 Gat No: "}
-              <strong className="text-white">{gatNo}</strong>
-            </span>
+            {farmerProfile?.gatNumber && (
+              <span className="rounded border border-[#F4F0E5]/20 bg-white/5 px-2 py-1 text-xs text-[#F4F0E5]/80">
+                {isMr ? "गट क्रमांक: " : "Farm number: "}
+                <strong className="text-white">{farmerProfile.gatNumber}</strong>
+              </span>
+            )}
           </div>
 
           {/* Farmer Full Name & Location Header */}
@@ -105,15 +93,21 @@ export default function FarmerIdentityHeader({
 
           {/* Farm Land & Crop Quick Tag */}
           <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-            <div className="flex items-center gap-1.5 rounded-lg border border-[#F4F0E5]/20 bg-white/10 px-2.5 py-1 text-xs">
-              <Droplets size={12} className={isIrrigated ? "text-[#38BDF8]" : "text-[#E6A52E]"} />
-              <span>
-                {isMr
-                  ? isIrrigated ? "बागायती शेती (Irrigated)" : "जिरायती शेती (Rainfed)"
-                  : isIrrigated ? "Irrigated Farm" : "Rainfed Farm"}
-              </span>
-              <span className="text-white/60">({acres} {isMr ? "एकर" : "Acres"})</span>
-            </div>
+            {farmerProfile?.irrigationType && (
+              <div className="flex items-center gap-1.5 rounded-lg border border-[#F4F0E5]/20 bg-white/10 px-2.5 py-1 text-xs">
+                <Droplets size={12} className={isIrrigated ? "text-[#38BDF8]" : "text-[#E6A52E]"} />
+                <span>
+                  {isMr
+                    ? isIrrigated ? "बागायती शेती" : "पावसावरची शेती"
+                    : isIrrigated ? "Irrigated Farm" : "Rainfed Farm"}
+                </span>
+              </div>
+            )}
+            {acres !== undefined && (
+              <div className="flex items-center gap-1.5 rounded-lg border border-[#F4F0E5]/20 bg-white/10 px-2.5 py-1 text-xs">
+                <span>{isMr ? "जमीन:" : "Land:"} {acres} {isMr ? "एकर" : "acres"}</span>
+              </div>
+            )}
 
             <div className="flex items-center gap-1.5 rounded-lg border border-[#E6A52E]/40 bg-[#E6A52E]/15 px-2.5 py-1 text-xs text-[#E6A52E]">
               <Sprout size={13} />
@@ -158,4 +152,3 @@ export default function FarmerIdentityHeader({
     </div>
   );
 }
-

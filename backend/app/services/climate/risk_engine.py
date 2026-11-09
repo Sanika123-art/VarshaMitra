@@ -102,6 +102,46 @@ def assess_climate_risk(
             ),
         )
 
+    # Stale and synthetic values must not be presented as a current assessment,
+    # even when their historical coverage is otherwise sufficient.
+    if data_quality.freshness_status in {
+        QualityStatus.STALE,
+        QualityStatus.MISSING,
+        QualityStatus.SYNTHETIC_STAGING,
+    }:
+        return RiskAssessmentResponse(
+            block_id=block_id,
+            block_name=block_name,
+            district_name=district_name,
+            assessment_time=assessment_time,
+            window_days=window_days,
+            start_date=start_date,
+            end_date=end_date,
+            overall_risk=RiskLevel.INSUFFICIENT_DATA,
+            confidence=ConfidenceLevel.LOW,
+            confidence_rationale=(
+                f"Risk withheld because the latest data is marked {data_quality.freshness_status.value}; "
+                "historical coverage does not establish that it is current."
+            ),
+            risk_drivers=[
+                RiskDriver(
+                    code="staleClimateData",
+                    name="Climate Data Not Current",
+                    evidence=f"Latest data freshness status: {data_quality.freshness_status.value}",
+                    contribution="primary",
+                )
+            ],
+            supporting_measurements=supporting_measurements,
+            method_version=RISK_ENGINE_METHOD_VERSION,
+            provisional_notice=(
+                "Risk cannot be presented as current until fresh, non-synthetic climate data is available."
+            ),
+            limitations=(
+                "Assessment withheld because the latest climate data is stale, missing, or a synthetic staging value. "
+                "Refresh the source data before using this risk level for decisions."
+            ),
+        )
+
     # 2. Determine Confidence Level
     if data_quality.coverage_ratio >= 0.90 and data_quality.freshness_status == QualityStatus.FRESH:
         confidence = ConfidenceLevel.HIGH
@@ -109,7 +149,7 @@ def assess_climate_risk(
             f"High confidence: {data_quality.coverage_ratio * 100:.1f}% continuous data coverage; latest day flagged fresh. "
             "Confidence reflects data completeness only, not the accuracy of the underlying source."
         )
-    elif data_quality.coverage_ratio >= 0.75:
+    elif data_quality.coverage_ratio >= 0.75 and data_quality.freshness_status == QualityStatus.FRESH:
         confidence = ConfidenceLevel.MEDIUM
         conf_rationale = (
             f"Medium confidence: {data_quality.coverage_ratio * 100:.1f}% data coverage with {data_quality.missing_days_count} missing days."
@@ -117,7 +157,8 @@ def assess_climate_risk(
     else:
         confidence = ConfidenceLevel.LOW
         conf_rationale = (
-            f"Low confidence: marginally sufficient data coverage ({data_quality.coverage_ratio * 100:.1f}%)."
+            f"Low confidence: {data_quality.coverage_ratio * 100:.1f}% data coverage; "
+            f"freshness status is {data_quality.freshness_status.value}."
         )
 
     # 3. Rule Evaluation & Driver Assembly

@@ -15,6 +15,8 @@ import type {
   DistrictDetail,
   ExplanationResponse,
   ForecastSeries,
+  FarmerFeedbackList,
+  FarmerFeedbackPost,
   HistoricalTrendsResponse,
   LocationResolveRequest,
   LocationSearchItem,
@@ -160,6 +162,10 @@ export const api = {
     return request(`/api/v1/risk/summary?window_days=${windowDays}&provider=${encodeURIComponent(provider)}`);
   },
 
+  async getRiskBoundaries(): Promise<unknown> {
+    return request("/api/v1/risk/boundaries");
+  },
+
   // Soil Intelligence
   async getRegionalSoil(blockId: string): Promise<RegionalSoilSummaryResponse> {
     return request(`/api/v1/soil/${encodeURIComponent(blockId)}`);
@@ -273,6 +279,23 @@ export const api = {
     const params = new URLSearchParams({ crop_id: cropId });
     if (blockId) params.set("block_id", blockId);
     return request(`/api/v1/mandi/rates?${params.toString()}`);
+  },
+
+  async getFarmerFeedback(): Promise<FarmerFeedbackList> {
+    return request("/api/v1/community/feedback");
+  },
+
+  async postFarmerFeedback(payload: {
+    display_name?: string;
+    district: string;
+    taluka?: string;
+    rating: FarmerFeedbackPost["rating"];
+    message: string;
+  }): Promise<FarmerFeedbackPost> {
+    return request("/api/v1/community/feedback", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
 
   async getChatConversations(): Promise<ChatConversationItem[]> {

@@ -3,9 +3,11 @@
 import asyncio
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import FileResponse
 import httpx
 
 from app.core.climate_constants import RISK_ENGINE_METHOD_VERSION
@@ -28,15 +30,30 @@ from app.services.location_service import location_service
 from app.services.rainfall.factory import get_rainfall_provider
 
 router = APIRouter(prefix="/risk", tags=["Explainable Risk Engine"])
+BOUNDARY_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "maharashtra-taluka-boundaries.geojson"
+BOUNDARY_SOURCE = (
+    "geoBoundaries India ADM3 (2018), sourced from Pathways Data Pvt. Ltd. / Local Government Directory; "
+    "Open Data Commons Open Database License 1.0."
+)
 
 PROVISIONAL_NOTICE = (
     "Provisional heuristic. Risk levels come from documented rules over recent rainfall only; they are not "
     "validated forecasts and have not been reviewed by local agronomists (KVK)."
 )
 COORDINATES_NOTE = (
-    "Markers are approximate block/taluka centroids, not administrative boundaries. "
-    "No boundary polygons are available in this dataset."
+    "Climate values are evaluated at approximate block/taluka reference coordinates, not farm-level measurements. "
+    "Administrative polygon geometry is served separately by /risk/boundaries."
 )
+MAP_LAYERS_AVAILABLE = {
+    "overall_risk": True,
+    "monsoon_onset": True,
+    "dry_spell": True,
+    "heavy_rainfall": True,
+    "rainfall_forecast": False,
+    "historical_rainfall": False,
+    "crop_distribution": False,
+    "farmer_reports": False,
+}
 
 # (provider, window_days) -> (monotonic timestamp, response)
 _SUMMARY_CACHE: Dict[Tuple[str, int], Tuple[float, RiskSummaryResponse]] = {}
@@ -74,14 +91,18 @@ async def _summarise_block(
     semaphore: asyncio.Semaphore,
     client: Optional[httpx.AsyncClient] = None,
 ) -> Tuple[RiskSummaryItem, Optional[DataProvenance]]:
+    district = location_service.get_district(block.district_id)
     base = dict(
         block_id=block.id,
         block_name=block.name,
         block_name_mr=block.name_mr,
         district_id=block.district_id,
         district_name=block.district_name,
+        district_name_mr=district.name_mr if district else block.district_name,
         latitude=block.latitude,
         longitude=block.longitude,
+        geometry_type="Point",
+        coordinates_precision=block.coordinates_precision.value,
     )
     try:
         async with semaphore:
@@ -115,11 +136,36 @@ async def _summarise_block(
             monsoon_onset_status=ev.monsoon_onset.status,
             in_monsoon_season=risk.in_monsoon_season,
             coverage_ratio=ev.data_quality.coverage_ratio,
+            freshness_status=ev.data_quality.freshness_status,
+            missing_days_count=ev.data_quality.missing_days_count,
+            confidence_rationale=risk.confidence_rationale,
+            assessment_time=risk.assessment_time,
+            data_provenance=ev.provenance,
             window_start=ev.series.start_date,
             window_end=ev.series.end_date,
         ),
         ev.provenance,
     )
+
+
+@router.get(
+    "/boundaries",
+    response_class=FileResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Maharashtra administrative taluka boundary polygons",
+    description=(
+        "Serves the pinned geoBoundaries India ADM3 dataset subset for Maharashtra. "
+        "The source represents 2018 sub-district boundaries and is not cadastral or farm-level geometry."
+    ),
+)
+async def get_risk_boundaries() -> FileResponse:
+    if not BOUNDARY_DATA_PATH.is_file():
+        logger.error("Risk map boundary file is missing at %s", BOUNDARY_DATA_PATH)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Administrative boundary data is not installed on this server.",
+        )
+    return FileResponse(BOUNDARY_DATA_PATH, media_type="application/geo+json")
 
 
 @router.get(
@@ -174,6 +220,10 @@ async def get_risk_summary(
         method_version=RISK_ENGINE_METHOD_VERSION,
         data_provenance=provenance,
         provisional_notice=PROVISIONAL_NOTICE,
+        geometry_type="Point",
+        boundaries_available=BOUNDARY_DATA_PATH.is_file(),
+        boundary_source=BOUNDARY_SOURCE if BOUNDARY_DATA_PATH.is_file() else None,
+        layers_available=MAP_LAYERS_AVAILABLE,
     )
     # Only cache when at least one block succeeded; a total outage must not be remembered.
     if response.available_count > 0:

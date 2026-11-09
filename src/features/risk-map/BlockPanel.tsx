@@ -2,312 +2,323 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  X,
-  ArrowRight,
-  Info,
-  ShieldCheck,
-  Sprout,
-  Sun,
-  Activity,
-  Droplets,
-  Wind,
-  CheckCircle2,
-} from "lucide-react";
+import { ArrowRight, MapPin, X } from "lucide-react";
 import { useTranslation } from "@/i18n/LanguageContext";
+import { useAppState } from "@/hooks/useAppState";
+import {
+  api,
+  type CropAdvisoryResponse,
+  type ForecastSeries,
+  type HistoricalTrendsResponse,
+  type RiskAssessmentResponse,
+  type RiskSummaryItem,
+} from "@/lib/api";
 import type { RiskLevel } from "@/types";
 import RiskBadge from "@/components/RiskBadge";
+import AudioAdvisoryPlayer from "@/components/audio/AudioAdvisoryPlayer";
 import { riskLabelKey } from "@/lib/utils";
-import { api, type RiskAssessmentResponse, type ForecastSeries, type RiskSummaryItem } from "@/lib/api";
-import { useAppState } from "@/hooks/useAppState";
 
-function formatAssessmentTime(timeStr?: string, isMr?: boolean): string {
-  if (!timeStr) return isMr ? "नुकताच अपडेट" : "Recent Cycle";
-  try {
-    const d = new Date(timeStr);
-    if (isNaN(d.getTime())) return isMr ? "नुकताच अपडेट" : "Recent Cycle";
-    if (isMr) {
-      const months = ["जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून", "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"];
-      return `${d.getDate()} ${months[d.getMonth()]} २०२६ · ${d.getHours()}:${d.getMinutes().toString().padStart(2, "0")} वा.`;
-    }
-    return d.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
-  } catch {
-    return isMr ? "नुकताच अपडेट" : "Recent Cycle";
-  }
-}
+type PanelMode = "farmer" | "officer";
 
-function formatDriverName(driverName?: string, isMr?: boolean): string {
-  if (!driverName) return isMr ? "हवामान निरीक्षण" : "MONITORING";
-  const lower = driverName.toLowerCase();
-  if (lower.includes("dry_season") || lower.includes("dry-season") || lower.includes("normal dry")) {
-    return isMr ? "सामान्य हिवाळी कोरडे हवामान" : "Normal Dry-Season Weather";
-  }
-  if (lower.includes("dry_spell") || lower.includes("dry spell")) {
-    return isMr ? "पावसाचा खंड (कोरडा काळ)" : "Dry Spell Active";
-  }
-  if (lower.includes("heavy_rain")) {
-    return isMr ? "मुसळधार पाऊस जोखीम" : "Heavy Rain Hazard";
-  }
-  return driverName.replace(/_/g, " ").toUpperCase();
-}
-
-export default function BlockPanel({ item, onClose }: { item: RiskSummaryItem; onClose: () => void }) {
+export default function BlockPanel({
+  item,
+  mode,
+  layer,
+  onClose,
+  onUseAsFarm,
+}: {
+  item: RiskSummaryItem;
+  mode: PanelMode;
+  layer: string;
+  onClose: () => void;
+  onUseAsFarm: () => void;
+}) {
   const { t, language } = useTranslation();
   const isMr = language === "mr";
-  const { setLocation } = useAppState();
+  const { cropId, stageId } = useAppState();
+  const [detailRisk, setDetailRisk] = useState<RiskAssessmentResponse | null>(null);
+  const [forecast, setForecast] = useState<ForecastSeries | null>(null);
+  const [history, setHistory] = useState<HistoricalTrendsResponse | null>(null);
+  const [advisory, setAdvisory] = useState<CropAdvisoryResponse | null>(null);
+  const [loading, setLoading] = useState(item.status === "ok");
+  const [detailError, setDetailError] = useState<string | null>(null);
 
-  const [liveRisk, setLiveRisk] = useState<RiskAssessmentResponse | null>(null);
-  const [liveForecast, setLiveForecast] = useState<ForecastSeries | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const canAdvise = item.status === "ok"
+    && item.overall_risk !== "insufficient_data"
+    && item.confidence !== "none"
+    && item.freshness_status !== "stale"
+    && item.freshness_status !== "missing"
+    && item.freshness_status !== "synthetic_staging_baseline";
 
   useEffect(() => {
+    if (item.status !== "ok") return;
     let cancelled = false;
 
-    async function loadLiveData() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [rRes, fRes] = await Promise.allSettled([
-          api.getClimateRisk(item.block_id),
-          api.getForecast(item.block_id, 14),
-        ]);
-
-        if (cancelled) return;
-        if (rRes.status === "fulfilled") {
-          setLiveRisk(rRes.value);
-        } else {
-          setError(isMr ? "हवामान जोखीम डेटा लोड होऊ शकला नाही." : "Detailed climate risk could not be retrieved from the backend.");
-        }
-        if (fRes.status === "fulfilled") {
-          setLiveForecast(fRes.value);
-        }
-      } catch {
-        if (!cancelled) setError(isMr ? "डेटा आणताना नेटवर्क त्रुटी आली." : "Network error loading block details.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    const requests: Promise<unknown>[] = [
+      api.getClimateRisk(item.block_id),
+      api.getForecast(item.block_id, 7),
+    ];
+    if (mode === "farmer" && canAdvise) {
+      requests.push(api.getCropAdvisory(item.block_id, cropId, stageId, language));
+    }
+    if (layer === "historicalRainfall" && !item.block_id.startsWith("geo_")) {
+      requests.push(api.getHistoricalTrends(item.block_id));
     }
 
-    loadLiveData();
+    Promise.allSettled(requests).then((results) => {
+      if (cancelled) return;
+      const [riskResult, forecastResult] = results;
+      if (riskResult.status === "fulfilled") {
+        setDetailRisk(riskResult.value as RiskAssessmentResponse);
+      } else {
+        setDetailError(isMr ? "या भागाची सविस्तर जोखीम माहिती मिळाली नाही." : "Detailed risk data is unavailable for this area.");
+      }
+      if (forecastResult.status === "fulfilled") {
+        setForecast(forecastResult.value as ForecastSeries);
+      }
+      let nextResult = 2;
+      if (mode === "farmer" && canAdvise) {
+        const advisoryResult = results[nextResult];
+        if (advisoryResult?.status === "fulfilled") {
+          setAdvisory(advisoryResult.value as CropAdvisoryResponse);
+        }
+        nextResult += 1;
+      }
+      if (layer === "historicalRainfall" && !item.block_id.startsWith("geo_")) {
+        const historyResult = results[nextResult];
+        if (historyResult?.status === "fulfilled") {
+          const value = historyResult.value as HistoricalTrendsResponse;
+          if (value.location_id === item.block_id) setHistory(value);
+        }
+      }
+      setLoading(false);
+    });
+
     return () => {
       cancelled = true;
     };
-  }, [item.block_id, isMr]);
+  }, [item.block_id, item.status, mode, canAdvise, cropId, stageId, language, isMr, layer]);
 
-  const activeRisk: RiskLevel = liveRisk?.overall_risk || item.overall_risk || "insufficient_data";
-  const blockName = isMr ? item.block_name_mr : item.block_name;
-
-  function selectAsFarmerLocation() {
-    setLocation({
-      stateId: "maharashtra",
-      stateName: "Maharashtra",
-      districtId: item.district_id,
-      districtName: item.district_name,
-      blockId: item.block_id,
-      blockName: item.block_name,
-      latitude: item.latitude,
-      longitude: item.longitude,
-    });
-  }
-
-  // Quick 14-day stats if forecast is available
-  const totalRainMm = liveForecast?.forecast?.reduce((acc, f) => acc + (f.precipitation_sum_mm || 0), 0) ?? 0;
-  const maxDayTemp = liveForecast?.forecast?.[0]?.temperature_max_c ?? 30;
-  const minNightTemp = liveForecast?.forecast?.[0]?.temperature_min_c ?? 16;
+  const freshnessInvalid = item.freshness_status === "stale"
+    || item.freshness_status === "missing"
+    || item.freshness_status === "synthetic_staging_baseline";
+  const activeRisk: RiskLevel = item.status === "ok" && !freshnessInvalid
+    ? detailRisk?.overall_risk ?? item.overall_risk ?? "insufficient_data"
+    : "insufficient_data";
+  const areaName = isMr ? item.block_name_mr : item.block_name;
+  const activeForecast = forecast?.forecast ?? [];
+  const sevenDayRain = activeForecast.reduce((sum, day) => sum + (day.precipitation_sum_mm ?? 0), 0);
+  const provenance = item.data_provenance ?? detailRisk?.data_provenance;
+  const coverage = item.coverage_ratio;
+  const hasBoundary = item.geometry_type === "Polygon" || item.geometry_type === "MultiPolygon";
 
   return (
     <aside
-      aria-label="Location Risk Details"
-      className="absolute inset-x-0 bottom-0 z-[500] max-h-[85vh] overflow-y-auto rounded-t-2xl border-t-3 border-[#123C32] bg-[#F4F0E5] p-6 shadow-2xl backdrop-blur-md lg:inset-auto lg:right-0 lg:top-0 lg:bottom-0 lg:max-h-none lg:w-[420px] lg:rounded-none lg:border-l-3 lg:border-t-0 lg:border-[#123C32]"
+      aria-label={isMr ? "निवडलेल्या भागाची हवामान माहिती" : "Selected area climate information"}
+      className="absolute inset-x-0 bottom-0 z-[500] max-h-[78dvh] overflow-y-auto rounded-t-2xl border-t border-black/15 bg-white p-4 shadow-2xl sm:inset-x-auto sm:right-3 sm:top-3 sm:bottom-3 sm:max-h-[calc(100%-24px)] sm:w-[min(420px,calc(100vw-24px))] sm:rounded-xl sm:border"
     >
-      {/* Mobile top drag handle */}
-      <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#123C32]/30 lg:hidden" />
-
-      {/* Close button */}
       <button
+        type="button"
         onClick={onClose}
-        className="absolute right-4 top-4 rounded-lg border border-[#123C32]/30 bg-white p-2 text-[#252923] hover:bg-[#123C32] hover:text-white transition"
+        className="absolute right-3 top-3 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-black/15 bg-white"
         aria-label={t("common.close")}
       >
-        <X size={16} />
+        <X size={18} />
       </button>
 
-      {/* Location header */}
-      <div className="flex items-center justify-between pr-8">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/70">
-          {item.district_name} {isMr ? "जिल्हा" : "District"}
-        </span>
-        <span className="flex items-center gap-1 rounded border border-[#123C32] bg-white px-2 py-0.5 font-mono text-[10px] font-bold text-[#123C32]">
-          <ShieldCheck size={11} className="text-[#3B8B61]" />
-          {isMr ? "प्रमाणित तालुका" : "Verified Block"}
-        </span>
+      <div className="pr-12">
+        <p className="flex items-center gap-1 text-xs font-medium text-[#56645B]">
+          <MapPin size={14} /> {item.district_name}
+        </p>
+        <h2 className="mt-1 text-xl font-bold">{areaName}</h2>
+        <p className="mt-1 text-xs text-[#56645B]">
+          {hasBoundary
+            ? (isMr ? "प्रशासकीय तालुका सीमा · २०१८ डेटा" : "Administrative taluka boundary · 2018 dataset")
+            : `${t("riskMapPage.mapPoint")} · ${item.latitude.toFixed(3)}, ${item.longitude.toFixed(3)}`}
+        </p>
       </div>
 
-      <h3 className="mt-2 font-display text-2xl font-black text-[#123C32]">
-        {blockName}
-      </h3>
-
-      <p className="mt-1 font-mono text-xs text-[#252923]/60">
-        Centroid: {item.latitude.toFixed(3)}°N, {item.longitude.toFixed(3)}°E
-      </p>
-
-      {/* Risk Badge with fixed level label */}
-      <div className="mt-4">
-        <RiskBadge risk={activeRisk} label={t(riskLabelKey[activeRisk] ?? "common.insufficientData")} size="md" withPrefix />
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <RiskBadge
+          risk={activeRisk}
+          label={t(riskLabelKey[activeRisk] ?? "common.insufficientData")}
+          size="md"
+          withPrefix
+        />
+        {item.confidence && (
+          <span className="rounded-full border border-black/10 px-2.5 py-1 text-xs">
+            {isMr ? "माहिती कव्हरेज" : "Data coverage"}: {item.confidence}
+          </span>
+        )}
       </div>
+
+      {item.status === "unavailable" && (
+        <div role="alert" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          {item.error ?? (isMr ? "या ठिकाणासाठी पुरेशी माहिती नाही." : "Climate data is unavailable for this area.")}
+        </div>
+      )}
+
+      {item.status === "ok" && activeRisk === "insufficient_data" && (
+        <div role="status" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          {freshnessInvalid
+            ? (isMr ? "हवामान माहिती अद्ययावत किंवा पडताळलेली नाही. जोखीम किंवा पीक कृती दाखवलेली नाही." : "Climate data is stale, missing, or synthetic. No current risk level or crop action is shown.")
+            : (isMr ? "माहिती अपुरी आहे. जोखीम किंवा पीक कृतीचा अंदाज दिलेला नाही." : "Data is insufficient. No risk level or crop action is inferred.")}
+        </div>
+      )}
 
       {loading && (
-        <div className="my-6 rounded-lg border-2 border-[#123C32]/20 bg-white p-4 font-mono text-xs text-[#123C32]">
-          {isMr ? "तालुका हवामान डेटा सिंक होत आहे..." : "Synchronizing block telemetry..."}
-        </div>
+        <p className="mt-3 text-sm text-[#56645B]" role="status">
+          {isMr ? "तपशील लोड होत आहेत…" : "Loading area details…"}
+        </p>
+      )}
+      {detailError && (
+        <p className="mt-3 rounded-lg bg-[#F4F4EF] p-3 text-sm text-[#56645B]" role="status">{detailError}</p>
       )}
 
-      {error && (
-        <div className="my-4 rounded-lg border-2 border-[#C7473B] bg-white p-3 font-mono text-xs text-[#C7473B]">
-          {error}
-        </div>
+      <section className="mt-4 rounded-lg border border-black/10 bg-[#F8F9F6] p-3">
+        <h3 className="font-semibold">{isMr ? "माहितीचा कालावधी" : "Data period"}</h3>
+        <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
+          <div>
+            <dt className="text-xs text-[#56645B]">{isMr ? "पासून" : "From"}</dt>
+            <dd>{item.window_start ?? detailRisk?.start_date ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-[#56645B]">{isMr ? "पर्यंत" : "Through"}</dt>
+            <dd>{item.window_end ?? detailRisk?.end_date ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-[#56645B]">{isMr ? "अद्ययावत वेळ" : "Assessed"}</dt>
+            <dd>{item.assessment_time ? new Date(item.assessment_time).toLocaleString(isMr ? "mr-IN" : "en-IN") : "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-[#56645B]">{isMr ? "डेटा कव्हरेज" : "Valid data"}</dt>
+            <dd>{coverage === undefined || coverage === null ? "—" : `${Math.round(coverage * 100)}%`}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-[#56645B]">{isMr ? "माहितीची ताजेपणा" : "Data freshness"}</dt>
+            <dd>
+              {item.freshness_status === "fresh"
+                ? (isMr ? "अद्ययावत" : "Fresh")
+                : item.freshness_status === "stale"
+                  ? (isMr ? "जुनी माहिती" : "Stale")
+                  : item.freshness_status === "provisional"
+                    ? (isMr ? "तात्पुरती" : "Provisional")
+                    : item.freshness_status === "missing"
+                      ? (isMr ? "उपलब्ध नाही" : "Missing")
+                      : item.freshness_status === "synthetic_staging_baseline"
+                        ? (isMr ? "कृत्रिम चाचणी माहिती" : "Synthetic test data")
+                        : "—"}
+            </dd>
+          </div>
+        </dl>
+        {provenance && (
+          <div className="mt-3 border-t border-black/10 pt-2 text-xs text-[#56645B]">
+            <p className="font-semibold text-[#16231B]">{provenance.provider_name} · {provenance.data_type.replaceAll("_", " ")}</p>
+            <p>{provenance.dataset_name} · {provenance.spatial_resolution}</p>
+            <p className="mt-1">{provenance.note}</p>
+          </div>
+        )}
+        {item.confidence_rationale && (
+          <p className="mt-2 text-xs text-[#56645B]">{item.confidence_rationale}</p>
+        )}
+      </section>
+
+      {forecast && (
+        <section className="mt-3 rounded-lg border border-black/10 p-3">
+          <h3 className="font-semibold">{isMr ? "पुढील ७ दिवसांचा हवामान अंदाज" : "Next 7-day forecast"}</h3>
+          <p className="mt-1 text-sm">
+            {isMr ? "एकूण अंदाजित पाऊस" : "Forecast rainfall total"}: <strong>{sevenDayRain.toFixed(1)} mm</strong>
+          </p>
+          <p className="mt-1 text-xs text-[#56645B]">
+            {forecast.provider.provider_name} · {forecast.data_type.replaceAll("_", " ")} · {forecast.forecast_generated_at ?? "—"}
+          </p>
+          <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+            {activeForecast.slice(0, 7).map((day) => (
+              <li key={day.date} className="flex justify-between gap-2">
+                <span>{day.date}</span><span>{day.precipitation_sum_mm.toFixed(1)} mm</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
-      {/* Detailed Risk Indicators if loaded */}
-      {liveRisk && (
-        <div className="mt-5 space-y-4">
-          
-          {/* Primary Risk Driver Box */}
-          <div className="rounded-xl border-2 border-[#123C32] bg-white p-4 shadow-[3px_3px_0px_#123C32]">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/60">
-              {isMr ? "प्राथमिक जोखीम घटक (Primary Driver)" : "Primary Risk Driver"}
-            </span>
-            <p className="mt-1 font-display text-base font-bold text-[#252923]">
-              {formatDriverName(liveRisk.risk_drivers?.[0]?.name, isMr)}
-            </p>
-            <p className="mt-1 font-sans text-xs text-[#252923]/70">
-              {isMr ? "अंदाज वेळ: " : "Assessed at "}
-              {formatAssessmentTime(liveRisk.assessment_time, isMr)}
-            </p>
-          </div>
-
-          {/* Quick Taluka Met Snapshot */}
-          <div className="rounded-xl border-2 border-[#123C32]/20 bg-white/70 p-3.5">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]/70">
-              {isMr ? "१४-दिवसीय हवामान आढावा" : "14-Day Weather Snapshot"}
-            </span>
-            <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded bg-[#F4F0E5] p-2 font-mono text-xs">
-                <span className="block text-[10px] text-[#252923]/60">{isMr ? "पाऊस" : "Rain"}</span>
-                <strong className="text-[#123C32]">{totalRainMm.toFixed(1)} mm</strong>
-              </div>
-              <div className="rounded bg-[#F4F0E5] p-2 font-mono text-xs">
-                <span className="block text-[10px] text-[#252923]/60">{isMr ? "कमाल/किमान" : "Max/Min"}</span>
-                <strong className="text-[#C7473B]">{Math.round(maxDayTemp)}° / {Math.round(minNightTemp)}°</strong>
-              </div>
-              <div className="rounded bg-[#F4F0E5] p-2 font-mono text-xs">
-                <span className="block text-[10px] text-[#252923]/60">{isMr ? "स्थिती" : "Status"}</span>
-                <strong className="text-[#3B8B61]">{isMr ? "वाफसा" : "Optimal"}</strong>
-              </div>
-            </div>
-          </div>
-
-          {/* Confidence and Drivers Grid */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* Forecast Reliability / Model Certainty */}
-            <div className="rounded-lg border-2 border-[#123C32]/30 bg-white p-3">
-              <span className="flex items-center gap-1 font-mono text-[10px] font-bold uppercase text-[#3B8B61]">
-                <ShieldCheck size={13} className="text-[#3B8B61]" />
-                {isMr ? "अंदाज खात्री" : "Model Certainty"}
-              </span>
-              <p className="mt-1 font-mono text-base font-bold text-[#123C32]">
-                {isMr ? "उच्च (HIGH)" : "HIGH"}
-              </p>
-              <p className="mt-0.5 text-[9px] text-[#252923]/60 leading-tight">
-                {isMr ? "कोरडे राहण्याबाबत १००% मॉडेल एकमत" : "High confidence in dry weather"}
-              </p>
-            </div>
-
-            {/* Active Drivers */}
-            <div className="rounded-lg border-2 border-[#123C32]/30 bg-white p-3">
-              <span className="flex items-center gap-1 font-mono text-[10px] font-bold uppercase text-[#E6A52E]">
-                <Activity size={13} className="text-[#E6A52E]" />
-                {isMr ? "सक्रिय निर्देशक" : "Active Drivers"}
-              </span>
-              <p className="mt-1 font-mono text-base font-bold text-[#123C32]">
-                {liveRisk.risk_drivers?.length ?? 1} {isMr ? "सक्रिय" : "active"}
-              </p>
-              <p className="mt-0.5 text-[9px] text-[#252923]/60 leading-tight">
-                {isMr ? "सामान्य कोरडा काळ सक्रिय" : "Dry Season Baseline"}
-              </p>
-            </div>
-          </div>
-
-          {/* Explanatory note resolving the user's exact confusion */}
-          <div className="rounded-lg border border-[#2878A5]/30 bg-[#2878A5]/10 p-2.5 text-[11px] text-[#2878A5] leading-relaxed">
-            <span className="font-bold">ℹ️ {isMr ? "महत्त्वाची नोंद:" : "Note:"}</span>{" "}
-            {isMr
-              ? "'अंदाज खात्री: उच्च' म्हणजे पाऊस पडण्याची शक्यता नव्हे; तर हवामान स्थिर व कोरडे राहील याबद्दल ECMWF/GFS मॉडेल्सची निश्चितता आहे."
-              : "'Confidence: High' indicates model certainty that the weather will remain stable and dry, not a high chance of rainfall."}
-          </div>
-
-          {/* Cross-Telemetry: APMC Mandi Rates & Soil Vapsa */}
-          <div className="rounded-xl border-2 border-[#123C32] bg-[#123C32]/5 p-3.5 space-y-2.5">
-            <div className="flex items-center justify-between border-b border-[#123C32]/10 pb-2">
-              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#123C32]">
-                {isMr ? "तालुका कृषी व बाजारपेठ थेट दुवा" : "Taluka Agri & Mandi Telemetry"}
-              </span>
-              <span className="rounded bg-[#E6A52E] px-1.5 py-0.5 font-mono text-[9px] font-bold text-[#123C32]">
-                LIVE
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg border border-[#123C32]/20 bg-white p-2.5">
-                <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-[#8F4C13]">
-                  <Activity size={11} />
-                  <span>{isMr ? "बाजारभाव (कांदा)" : "Mandi Rate (Onion)"}</span>
-                </div>
-                <p className="mt-1 font-mono text-sm font-black text-[#123C32]">
-                  ₹२,४५० <span className="text-[10px] font-normal text-[#252923]/70">/ क्विंटल</span>
-                </p>
-                <p className="text-[10px] text-[#3B8B61] font-semibold mt-0.5">
-                  {isMr ? "निफाड मुख्य APMC" : "Niphad Mandi Hub"}
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-[#123C32]/20 bg-white p-2.5">
-                <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-[#2878A5]">
-                  <Droplets size={11} />
-                  <span>{isMr ? "जमीन वाफसा" : "Soil Vapsa"}</span>
-                </div>
-                <p className="mt-1 font-mono text-sm font-black text-[#123C32]">
-                  ३०.७% <span className="text-[10px] font-normal text-[#252923]/70">Volumetric</span>
-                </p>
-                <p className="text-[10px] text-[#3B8B61] font-semibold mt-0.5">
-                  {isMr ? "५०:५० हवा/पाणी समतोल" : "Optimal 50:50 Vapsa"}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+      {layer === "historicalRainfall" && history && (
+        <section className="mt-3 rounded-lg border border-black/10 p-3">
+          <h3 className="font-semibold">{isMr ? "ऐतिहासिक पर्जन्य संदर्भ" : "Historical rainfall context"}</h3>
+          <p className="mt-1 text-sm">
+            {isMr ? "वार्षिक सामान्य पाऊस" : "Normal annual rainfall"}: <strong>{history.normal_annual_rainfall_mm.toFixed(0)} mm</strong>
+          </p>
+          <p className="text-xs text-[#56645B]">
+            {history.coverage_years} · {history.dataset_provenance} · {history.retrieved_at}
+          </p>
+        </section>
+      )}
+      {layer === "historicalRainfall" && item.block_id.startsWith("geo_") && (
+        <p className="mt-3 rounded-lg bg-[#F4F4EF] p-3 text-sm text-[#56645B]">
+          {isMr ? "या निवडलेल्या GPS बिंदूसाठी ऐतिहासिक संदर्भ जोडलेला नाही." : "Historical context is not registered for this selected GPS point."}
+        </p>
       )}
 
-      {/* Action CTA: Set as My Location & Go to Dashboard */}
-      <div className="mt-6 space-y-2 border-t-2 border-[#123C32]/15 pt-5">
-        <Link
-          href="/farmer/dashboard"
-          onClick={selectAsFarmerLocation}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-[#123C32] bg-[#123C32] py-3 font-mono text-xs font-bold uppercase tracking-wider text-[#F4F0E5] shadow-[3px_3px_0px_#252923] hover:bg-[#172B4D] transition"
-        >
-          <Sprout size={15} className="text-[#E6A52E]" />
-          <span>{isMr ? "माझे शेत म्हणून निवडा" : "Monitor as My Farm"}</span>
-          <ArrowRight size={14} />
-        </Link>
+      {mode === "farmer" && item.status === "ok" && canAdvise && advisory && (
+        <section className="mt-3 rounded-lg border border-[#1F4B3A]/20 bg-[#E9F0EA] p-3">
+          <h3 className="font-semibold">{isMr ? "तुमच्या पिकासाठी कृती" : "Action for your crop"}</h3>
+          <p className="mt-1 text-xs text-[#56645B]">
+            {isMr ? "निवडलेले पीक व अवस्था" : "Selected crop and stage"}: {advisory.primary_advisory.crop_name} · {advisory.primary_advisory.stage_name}
+          </p>
+          <p className="mt-2 text-sm font-medium">
+            {isMr ? advisory.primary_advisory.primary_action_mr : advisory.primary_advisory.primary_action_en}
+          </p>
+          <p className="mt-2 text-xs text-[#56645B]">
+            {isMr ? advisory.primary_advisory.plain_language_reason_mr : advisory.primary_advisory.plain_language_reason_en}
+          </p>
+          <p className="mt-2 text-xs text-[#56645B]">
+            {isMr ? advisory.primary_advisory.caveats_mr : advisory.primary_advisory.caveats}
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <AudioAdvisoryPlayer
+              title={isMr ? "पीक सल्ला" : "Crop advisory"}
+              textToRead={isMr
+                ? `${advisory.primary_advisory.primary_action_mr}. ${advisory.primary_advisory.plain_language_reason_mr}`
+                : `${advisory.primary_advisory.primary_action_en}. ${advisory.primary_advisory.plain_language_reason_en}`}
+              cropName={advisory.primary_advisory.crop_name}
+              stageName={advisory.primary_advisory.stage_name}
+              compact
+            />
+            <Link href="/farmer/advisory" className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-[#1F4B3A] underline">
+              {isMr ? "पूर्ण सल्ला" : "Full advisory"} <ArrowRight size={14} />
+            </Link>
+          </div>
+        </section>
+      )}
+      {mode === "farmer" && item.status === "ok" && !canAdvise && (
+        <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">
+          {t("riskMapPage.noCropAdvice")}
+        </p>
+      )}
 
-        <Link
-          href={`/location?q=${encodeURIComponent(item.block_name)}`}
-          className="flex w-full items-center justify-center gap-1 rounded-lg border-2 border-[#123C32]/30 bg-white py-2.5 font-mono text-xs font-bold text-[#123C32] hover:bg-[#F4F0E5] transition"
-        >
-          <span>{isMr ? "तालुका सविस्तर माहिती" : "View Taluka Profile"}</span>
-        </Link>
-      </div>
+      {mode === "officer" && (
+        <p className="mt-3 rounded-lg bg-[#F4F4EF] p-3 text-xs text-[#56645B]">
+          {t("riskMapPage.aggregatedOnly")}
+        </p>
+      )}
+
+      {mode === "farmer" && (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={onUseAsFarm}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#1F4B3A] px-3 text-sm font-semibold text-white hover:bg-[#173a2d]"
+          >
+            {t("riskMapPage.useSelectedArea")}
+          </button>
+          <Link
+            href="/farmer/dashboard"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-black/15 px-3 text-sm font-semibold"
+          >
+            {isMr ? "आजचा सल्ला" : "Today's advice"}
+          </Link>
+        </div>
+      )}
     </aside>
   );
 }

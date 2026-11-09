@@ -1,5 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert";
+import { readFile } from "node:fs/promises";
 import { crops, getCrop } from "../src/data/crops.ts";
 import { layerRisk } from "../src/features/risk-map/riskLayers.ts";
 import { riskColor } from "../src/lib/utils.ts";
@@ -53,6 +54,7 @@ describe("Expanded Crop Catalogue & Map Intelligence Suite", () => {
       heavy_rain_event: true,
       max_single_day_mm: 120.0,
       monsoon_onset_status: "delayed_onset",
+      in_monsoon_season: true,
     };
 
     // Overall layer mirrors backend overall_risk
@@ -66,6 +68,26 @@ describe("Expanded Crop Catalogue & Map Intelligence Suite", () => {
 
     // Onset layer derives from monsoon_onset_status
     assert.strictEqual(layerRisk(mockItem, "onset"), "high");
+    assert.strictEqual(layerRisk({ ...mockItem, monsoon_onset_status: "confirmed" }, "onset"), "low");
+    assert.strictEqual(layerRisk({ ...mockItem, monsoon_onset_status: "pending" }, "onset"), "moderate");
+    // Forecast and historical layers are not falsely derived from recent-past risk.
+    assert.strictEqual(layerRisk(mockItem, "rainfallForecast"), "insufficient_data");
+    assert.strictEqual(layerRisk(mockItem, "historicalRainfall"), "insufficient_data");
+
+    const missingIndicatorItem: RiskSummaryItem = {
+      ...mockItem,
+      dry_spell_severity: null,
+      heavy_rain_event: null,
+      monsoon_onset_status: null,
+    };
+    assert.strictEqual(layerRisk(missingIndicatorItem, "drySpell"), "insufficient_data");
+    assert.strictEqual(layerRisk(missingIndicatorItem, "heavyRain"), "insufficient_data");
+    assert.strictEqual(layerRisk(missingIndicatorItem, "onset"), "insufficient_data");
+    assert.strictEqual(layerRisk({ ...mockItem, overall_risk: "insufficient_data" }, "heavyRain"), "insufficient_data");
+    assert.strictEqual(layerRisk({ ...mockItem, in_monsoon_season: false }, "drySpell"), "low");
+    assert.strictEqual(layerRisk({ ...mockItem, freshness_status: "stale" }, "overall"), "insufficient_data");
+    assert.strictEqual(layerRisk({ ...mockItem, freshness_status: "missing" }, "drySpell"), "insufficient_data");
+    assert.strictEqual(layerRisk({ ...mockItem, freshness_status: "synthetic_staging_baseline" }, "onset"), "insufficient_data");
 
     // Unavailable status maps to insufficient_data
     const unavailableItem: RiskSummaryItem = {
@@ -79,5 +101,29 @@ describe("Expanded Crop Catalogue & Map Intelligence Suite", () => {
     assert.notStrictEqual(riskColor.insufficient_data, riskColor.low);
     assert.strictEqual(riskColor.insufficient_data, "#718096"); // Neutral slate grey
     assert.strictEqual(riskColor.low, "#4c8a58"); // Distinct forest green
+  });
+
+  test("Maharashtra map boundaries are sourced polygons with conservative risk links", async () => {
+    const dataPath = new URL("../backend/app/data/maharashtra-taluka-boundaries.geojson", import.meta.url);
+    const boundaryData = JSON.parse(await readFile(dataPath, "utf8")) as {
+      type: string;
+      metadata: { boundary_year: string; boundary_source: string; boundary_license: string };
+      features: Array<{
+        geometry: { type: string };
+        properties: { shape_id: string; risk_block_id: string | null };
+      }>;
+    };
+
+    assert.strictEqual(boundaryData.type, "FeatureCollection");
+    assert.strictEqual(boundaryData.metadata.boundary_year, "2018");
+    assert.match(boundaryData.metadata.boundary_source, /Local Government Directory/);
+    assert.strictEqual(boundaryData.metadata.boundary_license, "Open Data Commons Open Database License 1.0");
+    assert.ok(boundaryData.features.length >= 300);
+    assert.ok(boundaryData.features.every((feature) => ["Polygon", "MultiPolygon"].includes(feature.geometry.type)));
+
+    const shapeIds = boundaryData.features.map((feature) => feature.properties.shape_id);
+    assert.strictEqual(new Set(shapeIds).size, shapeIds.length);
+    assert.ok(boundaryData.features.some((feature) => feature.properties.risk_block_id === null));
+    assert.ok(boundaryData.features.filter((feature) => feature.properties.risk_block_id !== null).length >= 100);
   });
 });

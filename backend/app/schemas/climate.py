@@ -187,8 +187,11 @@ class RiskSummaryItem(BaseModel):
     block_name_mr: str
     district_id: str
     district_name: str
+    district_name_mr: str = Field(default="", description="District name in Marathi")
     latitude: float
     longitude: float
+    geometry_type: str = Field(default="Point", description="Map geometry; point until verified administrative polygons are available")
+    coordinates_precision: str = Field(default="approximate_centroid", description="Precision of the mapped coordinate")
     status: str = Field(..., description="ok | unavailable")
     error: Optional[str] = Field(None, description="Safe, user-presentable reason when status is 'unavailable'")
     overall_risk: Optional[RiskLevel] = None
@@ -201,6 +204,11 @@ class RiskSummaryItem(BaseModel):
     monsoon_onset_status: Optional[str] = None
     in_monsoon_season: Optional[bool] = Field(None, description="True when the window ends in June-September")
     coverage_ratio: Optional[float] = None
+    freshness_status: Optional[QualityStatus] = Field(None, description="Freshness classification of the latest climate data")
+    missing_days_count: Optional[int] = None
+    confidence_rationale: Optional[str] = None
+    assessment_time: Optional[dt_datetime] = None
+    data_provenance: Optional[DataProvenance] = None
     window_start: Optional[dt_date] = None
     window_end: Optional[dt_date] = None
 
@@ -221,3 +229,10 @@ class RiskSummaryResponse(BaseModel):
     method_version: str
     data_provenance: Optional[DataProvenance] = None
     provisional_notice: str
+    geometry_type: str = Field(default="Point", description="Current map geometry type")
+    boundaries_available: bool = Field(default=False, description="True only when verified administrative boundary data is loaded")
+    boundary_source: Optional[str] = Field(None, description="Source and license for verified boundary geometry, when available")
+    layers_available: Dict[str, bool] = Field(
+        default_factory=dict,
+        description="Whether each layer has regional data in this response; unavailable layers must not be inferred",
+    )

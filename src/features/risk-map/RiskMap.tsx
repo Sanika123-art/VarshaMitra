@@ -1,43 +1,137 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { riskColor, riskLabelKey } from "@/lib/utils";
-import type { MapLayer } from "./riskLayers";
-import { layerRisk } from "./riskLayers";
+import { api } from "@/lib/api";
+import { riskColor } from "@/lib/utils";
 import type { RiskSummaryItem } from "@/lib/api/types";
-import { useTranslation } from "@/i18n/LanguageContext";
+import type { RiskLevel } from "@/types";
+import { layerRisk, type MapLayer } from "./riskLayers";
 
 if (typeof window !== "undefined") {
   maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
 }
 
-export default function RiskMap({
-  items,
-  layer,
-  selectedBlockId,
-  flyTarget,
-  onSelect,
-  onMapCoordinateSelect,
-  language,
-  mapStyle = "terrain",
-  userFarmBlockId = "niphad",
-}: {
+interface BoundaryProperties {
+  shape_id: string;
+  area_name: string;
+  district_name: string;
+  district_id: string | null;
+  center_longitude: number;
+  center_latitude: number;
+  risk_block_id: string | null;
+}
+
+type BoundaryGeometry = GeoJSON.Polygon | GeoJSON.MultiPolygon;
+type BoundaryFeatureCollection = GeoJSON.FeatureCollection<BoundaryGeometry, BoundaryProperties>;
+
+interface StyledBoundaryProperties extends BoundaryProperties {
+  risk: RiskLevel;
+  riskColor: string;
+  isSelected: number;
+  isUserFarm: number;
+  isVisible: number;
+}
+
+type StyledBoundaryCollection = GeoJSON.FeatureCollection<BoundaryGeometry, StyledBoundaryProperties>;
+type RiskFilter = "all" | RiskLevel;
+
+interface RiskMapProps {
   items: RiskSummaryItem[];
+  visibleBlockIds: string[];
   layer: MapLayer;
   selectedBlockId: string | null;
+  selectedDistrictId: string;
+  selectedBlockFilter: string;
+  riskFilter: RiskFilter;
+  hasSearchQuery: boolean;
   flyTarget?: { center: [number, number]; zoom: number; key: number } | null;
   onSelect: (item: RiskSummaryItem) => void;
   onMapCoordinateSelect?: (lat: number, lon: number) => void;
   language: "en" | "mr";
-  mapStyle?: "terrain" | "satellite";
+  mapStyle?: "risk" | "roads" | "satellite";
   userFarmBlockId?: string;
-}) {
-  const { t } = useTranslation();
+}
+
+const EMPTY_BOUNDARIES: StyledBoundaryCollection = {
+  type: "FeatureCollection",
+  features: [],
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isBoundaryFeatureCollection(value: unknown): value is BoundaryFeatureCollection {
+  if (!isRecord(value) || value.type !== "FeatureCollection" || !Array.isArray(value.features)) {
+    return false;
+  }
+  return value.features.every((feature) => {
+    if (!isRecord(feature) || feature.type !== "Feature" || !isRecord(feature.geometry) || !isRecord(feature.properties)) {
+      return false;
+    }
+    const geometry = feature.geometry;
+    const properties = feature.properties;
+    return (
+      (geometry.type === "Polygon" || geometry.type === "MultiPolygon")
+      && Array.isArray(geometry.coordinates)
+      && typeof properties.shape_id === "string"
+      && typeof properties.area_name === "string"
+      && typeof properties.district_name === "string"
+      && (typeof properties.district_id === "string" || properties.district_id === null)
+      && typeof properties.center_longitude === "number"
+      && typeof properties.center_latitude === "number"
+      && (typeof properties.risk_block_id === "string" || properties.risk_block_id === null)
+    );
+  });
+}
+
+function getBoundaryBounds(boundaries: BoundaryFeatureCollection): maplibregl.LngLatBounds | null {
+  const bounds = new maplibregl.LngLatBounds();
+  for (const feature of boundaries.features) {
+    const positions = feature.geometry.type === "Polygon"
+      ? feature.geometry.coordinates.flat(1)
+      : feature.geometry.coordinates.flat(2);
+    for (const [longitude, latitude] of positions) {
+      bounds.extend([longitude, latitude]);
+    }
+  }
+  return bounds.isEmpty() ? null : bounds;
+}
+
+function fitMapToBoundaries(map: maplibregl.Map, boundaries: BoundaryFeatureCollection): boolean {
+  const bounds = getBoundaryBounds(boundaries);
+  if (!bounds) return false;
+  const padding = map.getContainer().clientWidth < 480 ? 12 : 48;
+  map.fitBounds(bounds, { padding, maxZoom: 7, duration: 0 });
+  return true;
+}
+
+export default function RiskMap({
+  items,
+  visibleBlockIds,
+  layer,
+  selectedBlockId,
+  selectedDistrictId,
+  selectedBlockFilter,
+  riskFilter,
+  hasSearchQuery,
+  flyTarget,
+  onSelect,
+  onMapCoordinateSelect,
+  language,
+  mapStyle = "risk",
+  userFarmBlockId,
+}: RiskMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const mapStyleRef = useRef(mapStyle);
+  const hasFitBoundariesRef = useRef(false);
+  const languageRef = useRef(language);
+  const [boundaries, setBoundaries] = useState<BoundaryFeatureCollection | null>(null);
+  const [boundaryError, setBoundaryError] = useState(false);
   const [webGlSupported] = useState(() => {
     if (typeof window === "undefined") return true;
     try {
@@ -48,55 +142,86 @@ export default function RiskMap({
     }
   });
 
-  // Generate GeoJSON FeatureCollection directly from backend summary items
-  const getGeoJson = useCallback((): GeoJSON.FeatureCollection<GeoJSON.Point> => {
+  const getBoundaryGeoJson = useCallback((): StyledBoundaryCollection => {
+    if (!boundaries) return EMPTY_BOUNDARIES;
     return {
       type: "FeatureCollection",
-      features: items.map((item) => {
-        const risk = layerRisk(item, layer);
-        const isSelected = item.block_id === selectedBlockId;
-        const isUserFarm = item.block_id === userFarmBlockId;
+      features: boundaries.features.map((feature) => {
+        const area = feature.properties;
+        const linkedItem = area.risk_block_id
+          ? items.find((item) => item.block_id === area.risk_block_id)
+          : undefined;
+        const risk = linkedItem ? layerRisk(linkedItem, layer) : "insufficient_data";
+        const isSelected = area.risk_block_id === selectedBlockId;
+        let isVisible = true;
+        if (selectedDistrictId !== "all" && area.district_id !== selectedDistrictId) isVisible = false;
+        if (selectedBlockFilter !== "all" && area.risk_block_id !== selectedBlockFilter) isVisible = false;
+        if (riskFilter !== "all" && risk !== riskFilter) isVisible = false;
+        if (hasSearchQuery && (!area.risk_block_id || !visibleBlockIds.includes(area.risk_block_id))) {
+          isVisible = false;
+        }
+        if (isSelected) isVisible = true;
+
         return {
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: [item.longitude, item.latitude],
-          },
+          ...feature,
           properties: {
-            id: item.block_id,
-            name: language === "mr" ? item.block_name_mr : item.block_name,
-            district: item.district_name,
+            ...area,
             risk,
-            riskColor: riskColor[risk] ?? "#718096",
+            riskColor: riskColor[risk],
             isSelected: isSelected ? 1 : 0,
-            isUserFarm: isUserFarm ? 1 : 0,
+            isUserFarm: area.risk_block_id === userFarmBlockId ? 1 : 0,
+            isVisible: isVisible ? 1 : 0,
           },
         };
       }),
     };
-  }, [items, layer, selectedBlockId, userFarmBlockId, language]);
+  }, [
+    boundaries,
+    hasSearchQuery,
+    items,
+    layer,
+    riskFilter,
+    selectedBlockFilter,
+    selectedBlockId,
+    selectedDistrictId,
+    userFarmBlockId,
+    visibleBlockIds,
+  ]);
 
   const onSelectRef = useRef(onSelect);
+  const itemsRef = useRef(items);
+  const onCoordinateSelectRef = useRef(onMapCoordinateSelect);
+  const getBoundaryGeoJsonRef = useRef(getBoundaryGeoJson);
+
   useEffect(() => {
     onSelectRef.current = onSelect;
-  }, [onSelect]);
-
-  const itemsRef = useRef(items);
-  useEffect(() => {
     itemsRef.current = items;
-  }, [items]);
+    onCoordinateSelectRef.current = onMapCoordinateSelect;
+    getBoundaryGeoJsonRef.current = getBoundaryGeoJson;
+  }, [items, onSelect, onMapCoordinateSelect, getBoundaryGeoJson]);
 
-  const onMapCoordinateSelectRef = useRef(onMapCoordinateSelect);
   useEffect(() => {
-    onMapCoordinateSelectRef.current = onMapCoordinateSelect;
-  }, [onMapCoordinateSelect]);
+    languageRef.current = language;
+  }, [language]);
 
-  const getGeoJsonRef = useRef(getGeoJson);
   useEffect(() => {
-    getGeoJsonRef.current = getGeoJson;
-  }, [getGeoJson]);
+    let cancelled = false;
+    api.getRiskBoundaries()
+      .then((payload) => {
+        if (!isBoundaryFeatureCollection(payload)) {
+          throw new Error("Boundary data did not match the expected GeoJSON schema.");
+        }
+        if (!cancelled) setBoundaries(payload);
+      })
+      .catch((error: unknown) => {
+        console.error("Could not load Maharashtra taluka boundaries.", error);
+        if (!cancelled) setBoundaryError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  // Initialize Map
   useEffect(() => {
     if (!mapContainer.current || !webGlSupported) return;
 
@@ -115,7 +240,7 @@ export default function RiskMap({
             tileSize: 256,
             maxzoom: 19,
             attribution:
-              '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+              '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors',
           },
           "satellite-tiles": {
             type: "raster",
@@ -124,325 +249,229 @@ export default function RiskMap({
             ],
             tileSize: 256,
             maxzoom: 19,
-            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS',
+            attribution: "Tiles &copy; Esri",
           },
         },
         layers: [
           {
+            id: "risk-background",
+            type: "background",
+            paint: { "background-color": "#F6F4EC" },
+          },
+          {
             id: "terrain-layer",
             type: "raster",
             source: "terrain-tiles",
-            minzoom: 0,
-            maxzoom: 19,
-            layout: {
-              visibility: mapStyle === "terrain" ? "visible" : "none",
-            },
+            layout: { visibility: mapStyleRef.current === "roads" ? "visible" : "none" },
           },
           {
             id: "satellite-layer",
             type: "raster",
             source: "satellite-tiles",
-            minzoom: 0,
-            maxzoom: 19,
-            layout: {
-              visibility: mapStyle === "satellite" ? "visible" : "none",
-            },
+            layout: { visibility: mapStyleRef.current === "satellite" ? "visible" : "none" },
           },
         ],
       },
-      center: [76.4, 19.2], // Calibrated center for complete Maharashtra framing
-      zoom: 6.6,
-      minZoom: 5.4,
-      maxZoom: 15,
+      center: [76.4, 19.2],
+      zoom: 6,
+      minZoom: 3.8,
+      maxZoom: 13,
       maxBounds: [
-        [70.5, 14.5], // Southwest coordinates (Arabian Sea / Goa border)
-        [82.5, 23.5], // Northeast coordinates (Madhya Pradesh / Chhattisgarh border)
+        [70.5, 14.5],
+        [82.5, 23.5],
       ],
+      dragRotate: false,
+      pitchWithRotate: false,
+      cooperativeGestures: true,
     });
 
-    // Position navigation controls at bottom-right
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: "metric" }), "bottom-right");
 
     map.on("load", () => {
-      // Add clustered geojson source
-      map.addSource("blocks-source", {
+      const boundaryData = getBoundaryGeoJsonRef.current();
+      map.addSource("areas-source", {
         type: "geojson",
-        data: getGeoJsonRef.current(),
-        cluster: true,
-        clusterMaxZoom: 8,
-        clusterRadius: 40,
+        data: boundaryData,
       });
 
-      // 1. Clustered circles layer
       map.addLayer({
-        id: "clusters",
-        type: "circle",
-        source: "blocks-source",
-        filter: ["has", "point_count"],
+        id: "areas-fill",
+        type: "fill",
+        source: "areas-source",
         paint: {
-          "circle-color": [
-            "step",
-            ["get", "point_count"],
-            "#2a583e", // 2-4 points
-            5,
-            "#1f4832", // 5-14 points
-            15,
-            "#163624", // 15+ points
-          ],
-          "circle-radius": [
-            "step",
-            ["get", "point_count"],
-            15,
-            5,
-            19,
-            15,
-            24,
-          ],
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
-          "circle-stroke-opacity": 0.9,
-          "circle-opacity": 0.92,
-        },
-      });
-
-      // 2. Cluster count text layer
-      map.addLayer({
-        id: "cluster-count",
-        type: "symbol",
-        source: "blocks-source",
-        filter: ["has", "point_count"],
-        layout: {
-          "text-field": "{point_count_abbreviated}",
-          "text-size": 11,
-        },
-        paint: {
-          "text-color": "#ffffff",
-        },
-      });
-
-      // 3. Selection halo layer for active individual marker
-      map.addLayer({
-        id: "blocks-halo",
-        type: "circle",
-        source: "blocks-source",
-        filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "isSelected"], 1]],
-        paint: {
-          "circle-radius": 20,
-          "circle-color": ["get", "riskColor"],
-          "circle-opacity": 0.25,
-          "circle-stroke-width": 2.5,
-          "circle-stroke-color": ["get", "riskColor"],
-          "circle-stroke-opacity": 0.85,
-        },
-      });
-
-      // 4. User Farm Beacon Halo Layer (Golden Pulsing Halo)
-      map.addLayer({
-        id: "user-farm-beacon-halo",
-        type: "circle",
-        source: "blocks-source",
-        filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "isUserFarm"], 1]],
-        paint: {
-          "circle-radius": 24,
-          "circle-color": "#E6A52E",
-          "circle-opacity": 0.35,
-          "circle-stroke-width": 3,
-          "circle-stroke-color": "#E6A52E",
-          "circle-stroke-opacity": 0.9,
-        },
-      });
-
-      // 5. Individual unclustered block markers
-      map.addLayer({
-        id: "blocks-point",
-        type: "circle",
-        source: "blocks-source",
-        filter: ["!", ["has", "point_count"]],
-        paint: {
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            6, 5,
-            8.5, 7,
-            12, 9,
-          ],
-          "circle-color": [
+          "fill-color": ["get", "riskColor"],
+          "fill-opacity": [
             "case",
-            ["==", ["get", "isUserFarm"], 1],
-            "#E6A52E", // Gold for logged-in user farm
-            ["get", "riskColor"],
+            ["==", ["get", "isVisible"], 1],
+            ["case", ["==", ["get", "isSelected"], 1], 0.92, 0.84],
+            0,
           ],
-          "circle-opacity": 0.95,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": [
-            "case",
-            ["==", ["get", "isUserFarm"], 1],
-            "#123C32",
-            "#ffffff",
-          ],
+          "fill-outline-color": "#FFFFFF",
         },
       });
 
-      // 6. User Farm Beacon Callout Text
       map.addLayer({
-        id: "user-farm-beacon-text",
-        type: "symbol",
-        source: "blocks-source",
-        filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "isUserFarm"], 1]],
-        layout: {
-          "text-field": language === "mr" ? "📍 तुमचे शेत (सागर तळपदे)" : "📍 Your Farm (Sagar Talpade)",
-          "text-size": 11,
-          "text-offset": [0, -1.8],
-          "text-anchor": "bottom",
-        },
+        id: "areas-outline",
+        type: "line",
+        source: "areas-source",
         paint: {
-          "text-color": "#123C32",
-          "text-halo-color": "#ffffff",
-          "text-halo-width": 2.5,
+          "line-color": [
+            "case",
+            ["==", ["get", "isSelected"], 1],
+            "#13251D",
+            ["==", ["get", "isUserFarm"], 1],
+            "#E6A52E",
+            "#FFFFFF",
+          ],
+          "line-width": [
+            "case",
+            ["==", ["get", "isSelected"], 1],
+            3,
+            ["==", ["get", "isUserFarm"], 1],
+            2.5,
+            1,
+          ],
+          "line-opacity": ["case", ["==", ["get", "isVisible"], 1], 0.95, 0],
         },
       });
 
-      // Cluster click: smooth expansion
-      map.on("click", "clusters", async (e: maplibregl.MapLayerMouseEvent) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: ["clusters"] });
-        const clusterId = features[0]?.properties?.cluster_id;
-        const source = map.getSource("blocks-source") as maplibregl.GeoJSONSource | undefined;
-        if (source && clusterId !== undefined) {
-          try {
-            const zoom = await source.getClusterExpansionZoom(clusterId);
-            const coordinates = (features[0].geometry as GeoJSON.Point).coordinates as [number, number];
-            map.easeTo({ center: coordinates, zoom: Math.min(zoom, 10.5), duration: 450 });
-          } catch {
-            map.easeTo({ center: e.lngLat, zoom: map.getZoom() + 2, duration: 350 });
-          }
-        }
-      });
+      map.setLayoutProperty("terrain-layer", "visibility", mapStyleRef.current === "roads" ? "visible" : "none");
+      map.setLayoutProperty("satellite-layer", "visibility", mapStyleRef.current === "satellite" ? "visible" : "none");
+      hasFitBoundariesRef.current = fitMapToBoundaries(map, boundaryData);
 
-      map.on("mouseenter", "clusters", () => {
+      map.on("mouseenter", "areas-fill", (event: maplibregl.MapLayerMouseEvent) => {
         map.getCanvas().style.cursor = "pointer";
-      });
+        const feature = event.features?.[0];
+        if (!feature?.properties) return;
+        popupRef.current?.remove();
 
-      map.on("mouseleave", "clusters", () => {
-        map.getCanvas().style.cursor = "";
-      });
-
-      // Hover interaction on individual markers
-      map.on("mouseenter", "blocks-point", (e: maplibregl.MapLayerMouseEvent) => {
-        map.getCanvas().style.cursor = "pointer";
-        const feature = e.features?.[0];
-        if (!feature || !feature.properties) return;
-        const coordinates = (feature.geometry as GeoJSON.Point).coordinates.slice() as [number, number];
-        const { name, district, risk, isUserFarm } = feature.properties;
-
-        if (popupRef.current) popupRef.current.remove();
-
-        const popupContainer = document.createElement("div");
-        popupContainer.style.padding = "4px 8px";
-        popupContainer.style.fontSize = "12px";
-        popupContainer.style.fontWeight = "600";
-        popupContainer.style.color = "#16261f";
-
-        const titleDiv = document.createElement("div");
-        titleDiv.textContent = isUserFarm
-          ? `📍 ${name} (${district}) - ${language === "mr" ? "तुमचे शेत" : "Your Farm"}`
-          : `${name} (${district})`;
-        popupContainer.appendChild(titleDiv);
-
-        const subDiv = document.createElement("div");
-        subDiv.style.fontSize = "11px";
-        subDiv.style.fontWeight = "500";
-        subDiv.style.color = "#5a6e63";
-        subDiv.style.textTransform = "capitalize";
-        subDiv.textContent = `${risk.replace("_", " ")} risk`;
-        popupContainer.appendChild(subDiv);
-
+        const content = document.createElement("div");
+        content.style.padding = "4px 8px";
+        content.style.fontSize = "12px";
+        content.style.fontWeight = "600";
+        const isMr = languageRef.current === "mr";
+        const dataLabel = feature.properties.risk === "insufficient_data"
+          ? (isMr ? "माहिती नाही" : "No data")
+          : String(feature.properties.risk).replaceAll("_", " ");
+        content.textContent = `${feature.properties.area_name}, ${feature.properties.district_name} · ${dataLabel}`;
         popupRef.current = new maplibregl.Popup({
           closeButton: false,
           closeOnClick: false,
-          offset: 12,
+          offset: 8,
           className: "risk-map-popup",
         })
-          .setLngLat(coordinates)
-          .setDOMContent(popupContainer)
+          .setLngLat(event.lngLat)
+          .setDOMContent(content)
           .addTo(map);
       });
 
-      map.on("mouseleave", "blocks-point", () => {
+      map.on("mouseleave", "areas-fill", () => {
         map.getCanvas().style.cursor = "";
-        if (popupRef.current) popupRef.current.remove();
+        popupRef.current?.remove();
       });
 
-      // Click interaction on individual block markers
-      map.on("click", "blocks-point", (e: maplibregl.MapLayerMouseEvent) => {
-        const feature = e.features?.[0];
-        if (!feature || !feature.properties) return;
-        const blockId = feature.properties.id;
-        const targetItem = itemsRef.current.find((b) => b.block_id === blockId);
-        if (targetItem) {
-          onSelectRef.current(targetItem);
+      map.on("click", "areas-fill", (event: maplibregl.MapLayerMouseEvent) => {
+        const properties = event.features?.[0]?.properties;
+        if (!properties) return;
+        const blockId = typeof properties.risk_block_id === "string" ? properties.risk_block_id : null;
+        const item = blockId ? itemsRef.current.find((entry) => entry.block_id === blockId) : undefined;
+        if (item) {
+          onSelectRef.current({
+            ...item,
+            geometry_type: "Polygon",
+            coordinates_precision: "geoBoundaries_adm3_2018",
+          });
+          return;
         }
+
+        onSelectRef.current({
+          block_id: `boundary_${String(properties.shape_id)}`,
+          block_name: String(properties.area_name),
+          block_name_mr: String(properties.area_name),
+          district_id: typeof properties.district_id === "string" ? properties.district_id : "unknown",
+          district_name: String(properties.district_name),
+          district_name_mr: String(properties.district_name),
+          latitude: Number(properties.center_latitude),
+          longitude: Number(properties.center_longitude),
+          geometry_type: "Polygon",
+          coordinates_precision: "geoBoundaries_adm3_2018",
+          status: "unavailable",
+          error: languageRef.current === "mr"
+            ? "या तालुक्यासाठी या प्रणालीत हवामान जोखीम माहिती उपलब्ध नाही."
+            : "No climate-risk summary is available for this taluka in the current dataset.",
+        });
       });
 
-      // Click interaction on arbitrary map points
-      map.on("click", (e: maplibregl.MapMouseEvent) => {
-        const rendered = map.queryRenderedFeatures(e.point, { layers: ["blocks-point", "clusters"] });
-        if (rendered && rendered.length > 0) return;
-
-        const { lng, lat } = e.lngLat;
-        if (lat >= 15.60 && lat <= 22.15 && lng >= 72.60 && lng <= 80.90) {
-          if (onMapCoordinateSelectRef.current) {
-            onMapCoordinateSelectRef.current(lat, lng);
-          }
+      map.on("click", (event: maplibregl.MapMouseEvent) => {
+        const features = map.queryRenderedFeatures(event.point, { layers: ["areas-fill"] });
+        if (features.length) return;
+        const { lng, lat } = event.lngLat;
+        if (lat >= 15.6 && lat <= 22.15 && lng >= 72.6 && lng <= 80.9) {
+          onCoordinateSelectRef.current?.(lat, lng);
         }
       });
     });
 
     mapRef.current = map;
-
     return () => {
+      popupRef.current?.remove();
       map.remove();
+      mapRef.current = null;
     };
   }, [webGlSupported]);
 
-  // Handle map style switching (Terrain vs Satellite)
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!boundaries || hasFitBoundariesRef.current) return;
     const map = mapRef.current;
+    if (!map) return;
+    const fit = () => {
+      if (hasFitBoundariesRef.current) return;
+      hasFitBoundariesRef.current = fitMapToBoundaries(map, boundaries);
+    };
+    if (map.loaded()) {
+      fit();
+    } else {
+      map.once("load", fit);
+    }
+    return () => {
+      map.off("load", fit);
+    };
+  }, [boundaries]);
+
+  useEffect(() => {
+    mapStyleRef.current = mapStyle;
+    const map = mapRef.current;
+    if (!map) return;
     if (map.getLayer("terrain-layer")) {
-      map.setLayoutProperty("terrain-layer", "visibility", mapStyle === "terrain" ? "visible" : "none");
+      map.setLayoutProperty("terrain-layer", "visibility", mapStyle === "roads" ? "visible" : "none");
     }
     if (map.getLayer("satellite-layer")) {
       map.setLayoutProperty("satellite-layer", "visibility", mapStyle === "satellite" ? "visible" : "none");
     }
   }, [mapStyle]);
 
-  // Update source data whenever items, layer, selectedBlockId, userFarmBlockId, or language changes
   useEffect(() => {
-    if (!mapRef.current) return;
-    const source = mapRef.current.getSource("blocks-source") as maplibregl.GeoJSONSource | undefined;
-    if (source) {
-      source.setData(getGeoJson());
-    }
-  }, [getGeoJson]);
+    const source = mapRef.current?.getSource("areas-source") as maplibregl.GeoJSONSource | undefined;
+    source?.setData(getBoundaryGeoJson());
+  }, [getBoundaryGeoJson]);
 
-  // Center on selected block
   useEffect(() => {
-    if (!mapRef.current || !selectedBlockId) return;
-    const target = items.find((b) => b.block_id === selectedBlockId);
-    if (target) {
-      mapRef.current.flyTo({
-        center: [target.longitude, target.latitude],
-        zoom: Math.max(mapRef.current.getZoom(), 9),
+    const map = mapRef.current;
+    if (!map || !selectedBlockId) return;
+    const item = items.find((entry) => entry.block_id === selectedBlockId);
+    if (item) {
+      map.flyTo({
+        center: [item.longitude, item.latitude],
+        zoom: Math.max(map.getZoom(), 9),
         speed: 1.2,
       });
     }
   }, [selectedBlockId, items]);
 
-  // Fly target handling
   useEffect(() => {
-    if (!mapRef.current || !flyTarget) return;
-    mapRef.current.flyTo({
+    if (!flyTarget) return;
+    mapRef.current?.flyTo({
       center: flyTarget.center,
       zoom: flyTarget.zoom,
       speed: 1.3,
@@ -451,9 +480,59 @@ export default function RiskMap({
     });
   }, [flyTarget]);
 
+  if (!webGlSupported) {
+    return (
+      <div className="h-full overflow-y-auto bg-[var(--color-paper)] p-4" role="status">
+        <p className="mb-3 text-sm font-semibold text-[var(--color-ink)]">
+          {language === "mr"
+            ? "या उपकरणावर नकाशा उपलब्ध नाही. खालील भाग निवडा."
+            : "The map is not supported on this device. Choose an area from the list."}
+        </p>
+        <ul className="space-y-2">
+          {items.map((item) => (
+            <li key={item.block_id}>
+              <button
+                type="button"
+                onClick={() => onSelect(item)}
+                className="w-full rounded-lg border border-black/15 bg-white p-3 text-left text-sm"
+              >
+                {language === "mr" ? item.block_name_mr : item.block_name}, {item.district_name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative h-full w-full">
-      <div ref={mapContainer} className="h-full w-full" />
+    <div className="relative min-h-[420px] h-full w-full" aria-label="Maharashtra administrative risk map">
+      <div className="absolute inset-0">
+        <div ref={mapContainer} className="h-full w-full" />
+      </div>
+      <div
+        className="pointer-events-none absolute right-4 top-4 z-10 flex h-16 w-12 flex-col items-center rounded-md border border-black/10 bg-white/95 pt-1.5 text-xs font-bold text-[#16231B] shadow"
+        aria-label={language === "mr" ? "उत्तर दिशा" : "North"}
+        title={language === "mr" ? "उत्तर" : "North"}
+      >
+        <span>N</span>
+        <svg aria-hidden="true" width="18" height="30" viewBox="0 0 18 30">
+          <path d="M9 1 17 26 9 21 1 26 9 1Z" fill="#16231B" />
+          <path d="M9 21 17 26 9 29V21Z" fill="#89918B" />
+        </svg>
+      </div>
+      {boundaryError && (
+        <div role="alert" className="absolute left-3 right-3 top-3 z-10 rounded-lg border border-red-300 bg-white p-3 text-sm text-red-800">
+          {language === "mr"
+            ? "प्रशासकीय सीमा लोड झाल्या नाहीत. कृपया नकाशा पुन्हा लोड करा."
+            : "Administrative boundaries could not be loaded. Reload the map to try again."}
+        </div>
+      )}
+      {!boundaries && !boundaryError && (
+        <div role="status" className="absolute left-3 top-3 z-10 rounded-lg bg-white/95 px-3 py-2 text-sm shadow">
+          {language === "mr" ? "तालुक्यांच्या सीमा लोड होत आहेत…" : "Loading taluka boundaries…"}
+        </div>
+      )}
     </div>
   );
 }

@@ -16,9 +16,8 @@ const STORAGE_KEY = "hyperlocal:app-state";
 export interface FarmerProfile {
   farmerName: string;
   mobileNumber: string;
-  mpin?: string;
   gatNumber?: string;
-  irrigationType: "rainfed" | "irrigated";
+  irrigationType?: "rainfed" | "irrigated";
   landAcres?: number;
   villageName?: string;
   villageNameMr?: string;
@@ -34,6 +33,7 @@ interface AppState {
   cropId: string;
   stageId: string;
   farmerProfile?: FarmerProfile | null;
+  farmerGuidePending: boolean;
 }
 
 interface AppStateContextValue extends AppState {
@@ -48,6 +48,7 @@ interface AppStateContextValue extends AppState {
     stageId?: string
   ) => void;
   loginAsFarmer: (record: RegisteredFarmerRecord) => void;
+  completeFarmerGuide: () => void;
   logout: () => void;
   hydrated: boolean;
 }
@@ -58,6 +59,7 @@ const defaultState: AppState = {
   cropId: "soybean",
   stageId: "sowing",
   farmerProfile: null,
+  farmerGuidePending: false,
 };
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
@@ -70,8 +72,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     try {
       const stored = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
       if (stored) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from localStorage
         const parsed = { ...defaultState, ...JSON.parse(stored) };
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate app state from localStorage once
         setState(parsed);
         // Sync any existing active crop to the farmer registry so it is never lost
         if (parsed.farmerProfile?.mobileNumber && parsed.cropId) {
@@ -135,7 +137,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         location,
         cropId,
         stageId,
-        mpin: profile.mpin || "1234",
         registeredAt: new Date().toISOString(),
       });
 
@@ -147,6 +148,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         location,
         cropId,
         stageId,
+        farmerGuidePending: true,
       });
     },
     [state, persist]
@@ -161,16 +163,22 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         location: record.location,
         cropId: record.cropId,
         stageId: record.stageId,
+        farmerGuidePending: true,
       });
     },
     [state, persist]
   );
+
+  const completeFarmerGuide = useCallback(() => {
+    persist({ ...state, farmerGuidePending: false });
+  }, [state, persist]);
 
   const logout = useCallback(() => {
     setState((prev) => {
       const next: AppState = {
         ...prev,
         role: null,
+        farmerGuidePending: false,
       };
       if (typeof window !== "undefined") {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -188,10 +196,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setFarmerProfile,
       registerFarmer,
       loginAsFarmer,
+      completeFarmerGuide,
       logout,
       hydrated,
     }),
-    [state, setRole, setLocation, setCrop, setFarmerProfile, registerFarmer, loginAsFarmer, logout, hydrated]
+    [state, setRole, setLocation, setCrop, setFarmerProfile, registerFarmer, loginAsFarmer, completeFarmerGuide, logout, hydrated]
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
